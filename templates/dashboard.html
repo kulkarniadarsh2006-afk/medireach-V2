@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}Mission Control{% endblock %}
+{% block page_title %}Mission Control{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="inner-content animate-in">
+
+  <!-- KPI GRID -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card kpi-blue" onclick="window.location.href='/inventory-audit'">
+      <div class="kpi-header"><span class="kpi-emoji">🏥</span><span class="kpi-trend trend-up">↑ +{{ villages|length * 4 }} new</span></div>
+      <div class="kpi-val" id="kv-villages">{{ villages|length }}</div>
+      <div class="kpi-label">Villages Monitored</div>
+      <div class="kpi-sub">Karnataka, Telangana Districts</div>
+      <div class="prog-bar mt-1"><div class="prog-fill prog-blue" style="width:78%"></div></div>
+    </div>
+    <div class="kpi-card kpi-emerald" onclick="window.location.href='/inventory-audit'">
+      <div class="kpi-header"><span class="kpi-emoji">💊</span><span class="kpi-trend trend-up">↑ +3.2%</span></div>
+      <div class="kpi-val" id="kv-avail">{{ avg_availability }}%</div>
+      <div class="kpi-label">Medicine Availability</div>
+      <div class="kpi-sub">Target: 95% | Gap: {{ 95 - avg_availability }}%</div>
+      <div class="prog-bar mt-1"><div class="prog-fill prog-emerald" style="width:{{ avg_availability }}%"></div></div>
+    </div>
+    <div class="kpi-card kpi-amber" onclick="window.location.href='/shortage'">
+      <div class="kpi-header"><span class="kpi-emoji">🚨</span><span class="kpi-trend trend-down">↓ -5 resolved</span></div>
+      <div class="kpi-val" id="kv-alerts">{{ total_alerts }}</div>
+      <div class="kpi-label">Active Shortage Alerts</div>
+      <div class="kpi-sub">Critical + High priority</div>
+      <div class="prog-bar mt-1"><div class="prog-fill prog-amber" style="width:{{ [total_alerts * 4, 100]|min }}%"></div></div>
+    </div>
+    <div class="kpi-card kpi-red" onclick="window.location.href='/emergency'">
+      <div class="kpi-header"><span class="kpi-emoji">🦠</span><span class="kpi-trend trend-down">↑ {{ active_outbreaks }} active</span></div>
+      <div class="kpi-val">{{ active_outbreaks }}</div>
+      <div class="kpi-label">Active Outbreaks</div>
+      <div class="kpi-sub">Dengue · Malaria · Typhoid</div>
+      <div class="prog-bar mt-1"><div class="prog-fill prog-red" style="width:{{ active_outbreaks * 20 }}%"></div></div>
+    </div>
+  </div>
+
+  <!-- RECOMMENDATION BANNER -->
+  <div class="rec-banner">
+    <div class="rb-icon">🤖</div>
+    <div class="rb-body">
+      <div class="rb-label">AI Recommendation <span class="conf-badge">97% Confidence</span></div>
+      <div class="rb-text">Based on current outbreak predictions and inventory levels, dispatch <strong>350 additional medicine units</strong> to <strong>Raichur Rural Health Center</strong> within <strong>48 hours</strong> to prevent critical shortage.</div>
+    </div>
+    <a href="/schedule" class="btn btn-primary btn-sm" style="white-space:nowrap;text-decoration:none">Approve & Dispatch</a>
+    <button onclick="this.closest('.rec-banner').style.display='none'" style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:.25rem;font-size:1.2rem">×</button>
+  </div>
+
+  <!-- TWO COL: AI COMMAND + TIMELINE -->
+  <div class="dash-grid-2">
+    <!-- AI COMMAND CENTER -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">⚡ AI Command Center</div>
+          <div class="card-subtitle">Analyze village health data across all agents</div>
+        </div>
+        <div class="status-dot"></div>
+      </div>
+      <div style="padding:0 1.5rem 1.5rem">
+        <div class="form-row mb-2">
+          <div class="form-group">
+            <label class="form-label">Village Name</label>
+            <select class="form-control" id="cmd-village">
+              {% for v in villages %}<option value="{{ v.name }}">{{ v.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Disease Type</label>
+            <select class="form-control" id="cmd-disease">
+              <option>Dengue</option><option>Malaria</option><option>Typhoid</option><option>Cholera</option><option>Influenza</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row mb-2">
+          <div class="form-group">
+            <label class="form-label">Population</label>
+            <input class="form-control" type="number" id="cmd-pop" value="15000" placeholder="e.g. 15000"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fever Cases (7 Days)</label>
+            <input class="form-control" type="number" id="cmd-fever" value="245" placeholder="e.g. 245"/>
+          </div>
+        </div>
+        <div class="form-row mb-2">
+          <div class="form-group">
+            <label class="form-label">Current Stock (units)</label>
+            <input class="form-control" type="number" id="cmd-stock" value="800"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Week Usage</label>
+            <input class="form-control" type="number" id="cmd-usage" value="320"/>
+          </div>
+        </div>
+        <button class="run-btn" id="run-btn" onclick="runAnalysis()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span id="run-text">Run AI Analysis</span>
+          <span id="run-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- AI TIMELINE -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">⏱ AI Activity Timeline</div>
+          <div class="card-subtitle">Multi-agent processing pipeline</div>
+        </div>
+        <span id="tl-status" style="font-size:.72rem;font-weight:700;padding:.2rem .625rem;border-radius:100px;background:rgba(16,185,129,.15);color:var(--emerald);border:1px solid rgba(16,185,129,.3)">Idle</span>
+      </div>
+      <div class="timeline" id="timeline">
+        <div class="tl-item done" id="tl-1"><div class="tl-dot">✓</div><div class="tl-content"><span class="tl-step">Disease Agent Activated</span><span class="tl-time" id="tt-1">Ready</span></div></div>
+        <div class="tl-item" id="tl-2"><div class="tl-dot"></div><div class="tl-content"><span class="tl-step">Demand Forecast Generated</span><span class="tl-time" id="tt-2">Pending</span></div></div>
+        <div class="tl-item" id="tl-3"><div class="tl-dot"></div><div class="tl-content"><span class="tl-step">Inventory Evaluated</span><span class="tl-time" id="tt-3">Pending</span></div></div>
+        <div class="tl-item" id="tl-4"><div class="tl-dot"></div><div class="tl-content"><span class="tl-step">Logistics Optimized</span><span class="tl-time" id="tt-4">Pending</span></div></div>
+        <div class="tl-item" id="tl-5"><div class="tl-dot"></div><div class="tl-content"><span class="tl-step">Recommendation Published</span><span class="tl-time" id="tt-5">Pending</span></div></div>
+      </div>
+      <div style="margin:0 1.5rem 1.5rem"><div class="prog-bar"><div class="prog-fill prog-blue" id="tl-prog" style="width:20%"></div></div></div>
+    </div>
+  </div>
+
+  <!-- AGENT CARDS -->
+  <div class="section-hdr">
+    <span class="section-title">Multi-Agent Intelligence Network</span>
+    <span class="section-badge">5 Agents Active</span>
+  </div>
+  <div class="agents-grid">
+    <div class="agent-card" onclick="window.location.href='/demand'"><div class="agent-icon">🦠</div><div class="agent-name">Disease Prediction Agent</div><div class="agent-metrics"><div class="agent-metric"><span class="am-label">Risk Score</span><span class="am-val am-red" id="a1-risk">6.8/10</span></div><div class="agent-metric"><span class="am-label">Outbreak Prob.</span><span class="am-val am-amber" id="a1-prob">68%</span></div><div class="agent-metric"><span class="am-label">Confidence</span><span class="am-val am-green" id="a1-conf">91%</span></div></div><div class="agent-bar"><div class="ab-fill ab-blue" id="ab1" style="width:68%"></div></div><div class="agent-tag" id="at1">⚠️ Elevated Risk</div></div>
+    <div class="agent-card" onclick="window.location.href='/demand'"><div class="agent-icon">📈</div><div class="agent-name">Demand Forecast Agent</div><div class="agent-metrics"><div class="agent-metric"><span class="am-label">Predicted Demand</span><span class="am-val" id="a2-dem">420 units</span></div><div class="agent-metric"><span class="am-label">7-Day Forecast</span><span class="am-val am-amber" id="a2-7d">+35%</span></div><div class="agent-metric"><span class="am-label">30-Day Forecast</span><span class="am-val am-red" id="a2-30d">+62%</span></div></div><div class="agent-bar"><div class="ab-fill ab-blue" id="ab2" style="width:75%"></div></div><div class="agent-tag" id="at2">📊 Surge Expected</div></div>
+    <div class="agent-card" onclick="window.location.href='/inventory-audit'"><div class="agent-icon">📦</div><div class="agent-name">Inventory Intelligence Agent</div><div class="agent-metrics"><div class="agent-metric"><span class="am-label">Stock Health</span><span class="am-val am-amber" id="a3-hlth">Moderate</span></div><div class="agent-metric"><span class="am-label">Shortage Prob.</span><span class="am-val am-red" id="a3-short">71%</span></div><div class="agent-metric"><span class="am-label">Expiry Risk</span><span class="am-val am-green" id="a3-exp">Low 4%</span></div></div><div class="agent-bar"><div class="ab-fill ab-red" id="ab3" style="width:71%"></div></div><div class="agent-tag" id="at3">🔴 Restock Required</div></div>
+    <div class="agent-card" onclick="window.location.href='/schedule'"><div class="agent-icon">🚚</div><div class="agent-name">Logistics Optimization Agent</div><div class="agent-metrics"><div class="agent-metric"><span class="am-label">Recommended Dispatch</span><span class="am-val" id="a4-disp">350 units</span></div><div class="agent-metric"><span class="am-label">Delivery ETA</span><span class="am-val am-green" id="a4-eta">18 hours</span></div><div class="agent-metric"><span class="am-label">Route Efficiency</span><span class="am-val am-green" id="a4-route">88%</span></div></div><div class="agent-bar"><div class="ab-fill ab-emerald" id="ab4" style="width:88%"></div></div><div class="agent-tag" id="at4">✅ Route Optimized</div></div>
+    <div class="agent-card" onclick="window.location.href='/shortage'"><div class="agent-icon">🚨</div><div class="agent-name">Alert & Escalation Agent</div><div class="agent-metrics"><div class="agent-metric"><span class="am-label">Alert Level</span><span class="am-val am-amber" id="a5-lvl">ORANGE</span></div><div class="agent-metric"><span class="am-label">Emergency Status</span><span class="am-val" id="a5-stat">Standby</span></div><div class="agent-metric"><span class="am-label">Actions Required</span><span class="am-val am-red" id="a5-act">4</span></div></div><div class="agent-bar"><div class="ab-fill ab-amber" id="ab5" style="width:60%"></div></div><div class="agent-tag" id="at5">🔔 Notify Director</div></div>
+  </div>
+
+  <!-- TWO COL: OUTBREAKS + VILLAGE STATUS -->
+  <div class="dash-grid-2">
+    <!-- OUTBREAKS -->
+    <div class="card card-pad">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <span class="section-title">🦠 Active Outbreaks</span>
+        <a href="/emergency" class="btn btn-red btn-sm" style="text-decoration:none">View Emergency Plan</a>
+      </div>
+      <div class="outbreak-cards">
+        {% for ob in outbreaks %}
+        <div class="outbreak-card {{ ob.severity | lower }}">
+          <div class="oc-header">
+            <span class="oc-disease">{{ ob.disease }}</span>
+            <span class="badge badge-{{ ob.severity | lower }}">{{ ob.severity }}</span>
+          </div>
+          <div class="oc-body">
+            {% set vname = villages | selectattr('id', 'equalto', ob.village_id) | map(attribute='name') | first %}
+            <div class="oc-row"><span class="oc-label">Village</span><span class="oc-val">{{ vname }}</span></div>
+            <div class="oc-row"><span class="oc-label">Affected</span><span class="oc-val">{{ ob.affected }} patients</span></div>
+            <div class="oc-row"><span class="oc-label">Spread Rate</span><span class="oc-val">{{ ob.spread_rate }}x/day</span></div>
+            <div class="oc-row"><span class="oc-label">Started</span><span class="oc-val">{{ ob.started }}</span></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- VILLAGE INVENTORY OVERVIEW -->
+    <div class="card card-pad">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <span class="section-title">📊 Village Stock Status</span>
+        <a href="/inventory-audit" class="btn btn-outline btn-sm" style="text-decoration:none">Full Audit</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.625rem">
+        {% for v in villages %}
+        {% set inv = inventory.get(v.id, {}) %}
+        {% set total = inv.values() | sum %}
+        {% set pct = [((total / 8000) * 100) | int, 100] | min %}
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:.25rem">
+            <span style="font-size:.82rem;font-weight:600;color:var(--text)">{{ v.name }}</span>
+            <span style="font-size:.78rem;color:{% if pct < 40 %}var(--red){% elif pct < 65 %}var(--amber){% else %}var(--emerald){% endif %};font-weight:700">{{ pct }}%</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill {% if pct < 40 %}prog-red{% elif pct < 65 %}prog-amber{% else %}prog-emerald{% endif %}" style="width:{{ pct }}%"></div></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="dash-grid-3">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📈 Demand Trends</div>
+        <div class="chart-period"><button class="period-btn active">7D</button><button class="period-btn">30D</button></div>
+      </div>
+      <div class="chart-wrap"><canvas id="demand-chart" height="180"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📦 Inventory Status</div></div>
+      <div class="chart-wrap"><canvas id="inventory-chart" height="180"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🚚 Supply Efficiency</div></div>
+      <div class="chart-wrap"><canvas id="supply-chart" height="180"></canvas></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ─── AI ANALYSIS ───
+async function runAnalysis() {
+  const btn = document.getElementById('run-btn');
+  const txt = document.getElementById('run-text');
+  const spinner = document.getElementById('run-spinner');
+  btn.disabled = true; txt.textContent = 'Processing...'; spinner.classList.remove('hidden');
+  document.getElementById('tl-status').textContent = 'Processing...';
+
+  // Reset timeline
+  for(let i=2;i<=5;i++){
+    const item=document.getElementById(`tl-${i}`);
+    item.classList.remove('done','active');
+    document.getElementById(`tt-${i}`).textContent='Pending';
+  }
+
+  const payload = {
+    village: document.getElementById('cmd-village').value,
+    population: document.getElementById('cmd-pop').value,
+    fever_cases: document.getElementById('cmd-fever').value,
+    stock: document.getElementById('cmd-stock').value,
+    usage: document.getElementById('cmd-usage').value,
+    disease: document.getElementById('cmd-disease').value,
+  };
+
+  // Animate timeline steps
+  const steps = [{id:2,prog:'40%',delay:700},{id:3,prog:'60%',delay:1200},{id:4,prog:'80%',delay:1700},{id:5,prog:'100%',delay:2200}];
+  steps.forEach(s => {
+    setTimeout(() => {
+      const item=document.getElementById(`tl-${s.id}`);
+      item.classList.add('active');
+      document.getElementById(`tt-${s.id}`).textContent='Processing...';
+      setTimeout(()=>{
+        item.classList.remove('active');item.classList.add('done');
+        item.querySelector('.tl-dot').textContent='✓';
+        document.getElementById(`tt-${s.id}`).textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
+        document.getElementById('tl-prog').style.width=s.prog;
+      },400);
+    }, s.delay);
+  });
+
+  try {
+    const res = await fetch('/api/analyze', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d = await res.json();
+    setTimeout(() => updateAgents(d), 2600);
+  } catch(e) { console.error(e); }
+
+  setTimeout(() => {
+    btn.disabled=false; txt.textContent='Run AI Analysis'; spinner.classList.add('hidden');
+    document.getElementById('tl-status').textContent='Complete ✓';
+    showToast('AI Analysis complete for ' + payload.village, '🧠');
+  }, 2800);
+}
+
+function updateAgents(d) {
+  const set=(id,val)=>{const el=document.getElementById(id);if(el){el.style.transform='scale(1.1)';el.textContent=val;setTimeout(()=>el.style.transform='scale(1)',300);}};
+  const da=d.disease_agent, dem=d.demand_agent, inv=d.inventory_agent, log=d.logistics_agent, al=d.alert_agent;
+  set('a1-risk',da.risk_score+'/10'); set('a1-prob',da.outbreak_probability+'%'); set('a1-conf',da.confidence+'%');
+  set('a2-dem',dem.predicted_demand+' units'); set('a2-7d','+'+Math.round((dem.forecast_7d/dem.predicted_demand-1)*100)+'%'); set('a2-30d','+'+Math.round((dem.forecast_30d/dem.predicted_demand-1)*100)+'%');
+  set('a3-hlth',inv.stock_health); set('a3-short',inv.shortage_probability+'%'); set('a3-exp','Low');
+  set('a4-disp',log.recommended_dispatch+' units'); set('a4-eta',log.delivery_eta_hours+'h'); set('a4-route',log.route_efficiency+'%');
+  set('a5-lvl',al.alert_level); set('a5-stat',al.emergency_status); set('a5-act',al.actions);
+  document.getElementById('ab1').style.width=da.outbreak_probability+'%';
+  document.getElementById('ab4').style.width=log.route_efficiency+'%';
+  document.querySelector('.rec-banner .rb-text').innerHTML=d.recommendation;
+}
+
+// ─── CHARTS ───
+fetch('/api/charts/demand-trend').then(r=>r.json()).then(data=>{
+  const t=getChartTheme();
+  const grad=document.getElementById('demand-chart').getContext('2d').createLinearGradient(0,0,0,180);
+  grad.addColorStop(0,'rgba(37,99,235,.3)');grad.addColorStop(1,'rgba(37,99,235,0)');
+  new Chart(document.getElementById('demand-chart'),{
+    type:'line',data:{labels:data.labels,datasets:data.datasets.map((ds,i)=>({...ds,borderColor:['#2563EB','#06B6D4','#10B981','#F59E0B'][i],backgroundColor:i===0?grad:'transparent',fill:i===0,tension:.4,pointRadius:3,borderWidth:2}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:t.text,padding:12,usePointStyle:true}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{x:{grid:{color:t.grid},ticks:{color:t.text,font:{size:10}}},y:{grid:{color:t.grid},ticks:{color:t.text,font:{size:10}}}}}
+  });
+});
+
+fetch('/api/charts/inventory-distribution').then(r=>r.json()).then(data=>{
+  const t=getChartTheme();
+  new Chart(document.getElementById('inventory-chart'),{
+    type:'doughnut',data:{labels:data.labels,datasets:[{data:data.data,backgroundColor:['#10B981','#F59E0B','#EF4444','#8B5CF6'],borderColor:'transparent',hoverBorderWidth:3}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:t.text,padding:10,usePointStyle:true,font:{size:10}}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}}}
+  });
+});
+
+// Supply chart (static)
+(()=>{
+  const t=getChartTheme();
+  new Chart(document.getElementById('supply-chart'),{
+    type:'bar',data:{labels:['Wk1','Wk2','Wk3','Wk4'],datasets:[{label:'On-time %',data:[82,78,88,91],backgroundColor:'rgba(16,185,129,.7)',borderRadius:6},{label:'Delayed %',data:[12,18,8,7],backgroundColor:'rgba(245,158,11,.7)',borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:t.text,padding:10,usePointStyle:true,font:{size:10}}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{x:{grid:{color:t.grid},ticks:{color:t.text,font:{size:10}}},y:{grid:{color:t.grid},ticks:{color:t.text,font:{size:10}},max:100}}}
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Advanced Analytics{% endblock %}
+{% block breadcrumb %}Analytics{% endblock %}
+{% block content %}
+<div class="inner-content animate-in">
+  <div class="section-hdr">
+    <span class="section-title">🔬 Disease Outbreak Forecasts &amp; Supply Chain Analytics</span>
+    <div style="display:flex;gap:.75rem">
+      <button class="btn btn-outline" onclick="showToast('Analytics exported','📥')">Export</button>
+      <button class="btn btn-primary">Generate Report</button>
+    </div>
+  </div>
+
+  <!-- PERSONAS SECTION -->
+  <div class="section-hdr"><span class="section-title">👥 System Personas &amp; Access Control</span><span class="section-badge">11 Roles</span></div>
+  <div class="personas-grid" style="margin-bottom:1.5rem">
+    {% for p in personas %}
+    <div class="persona-card" onclick="showToast('Switched to '+' {{ p.role }}',this.querySelector('.pc-icon').textContent)">
+      <div class="pc-icon">{{ p.icon }}</div>
+      <div class="pc-name">{{ p.role }}</div>
+      <div class="pc-access">{{ p.access | join(' · ') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- CHARTS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header"><div class="card-title">🦠 Disease Outbreak Forecast — 90 Day Projection</div><span class="badge badge-low">94% accuracy</span></div>
+      <div class="chart-wrap" style="padding:1rem 1.25rem 1.25rem"><canvas id="outbreak-chart" height="220"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">💡 Medicine Type Distribution</div></div>
+      <div class="chart-wrap" style="padding:1rem 1.25rem 1.25rem"><canvas id="med-type-chart" height="240"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📡 Supply Chain Performance Radar</div></div>
+      <div class="chart-wrap" style="padding:1rem 1.25rem 1.25rem"><canvas id="supply-radar" height="240"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DATA OBJECTS TABLE -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🗄️ All 14 Data Objects — Pega Blueprint Mapping</div></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Data Object</th><th>System of Record</th><th>Flask Model</th><th>API Endpoint</th><th>Records</th></tr></thead>
+        <tbody>
+          {% set objects = [('Village Population Record','Flask Local','VILLAGES list','/api/villages','8 villages'),('Medicine Inventory','Flask Local','INVENTORY_DATA dict','/api/inventory-audit','80 records'),('Historical Consumption Re...','Flask Local','get_daily_consumption()','/api/demand-prediction','640 calcs'),('Disease Outbreak Report','Flask Local','DISEASE_OUTBREAKS list','/api/emergency','4 outbreaks'),('Weather Record','Flask Local','WEATHER_DATA dict','/api/demand-prediction','8 records'),('Transportation Resource','Flask Local','TRANSPORTATION list','/api/delivery-schedule','6 vehicles'),('PHC Patient Count','Flask Local','VILLAGES.population','Derived','8 PHCs'),('Demand Forecast','Flask AI','predict_demand()','/api/demand-prediction','640 forecasts'),('Shortage Alert','Flask AI','calculate_risk_level()','/api/shortage-alerts','Dynamic'),('Stock Transfer','Flask AI','api_stock_transfers()','/api/stock-transfers','Dynamic'),('Delivery Schedule','Flask AI','api_delivery_schedule()','/api/delivery-schedule','Dynamic'),('Emergency Plan','Flask AI','api_emergency()','/api/emergency','Dynamic'),('Analytics Report','Flask AI','All endpoints','/api/*','Aggregated'),('Persona Profile','Flask Local','PERSONAS list','Built-in','11 roles')] %}
+          {% for name, system, model, endpoint, count in objects %}
+          {% set i = loop.index0 %}
+          <tr>
+            <td style="font-family:'JetBrains Mono',monospace;color:var(--text3)">DO{{ '%03d'|format(i+1) }}</td>
+            <td><strong>{{ name }}</strong></td>
+            <td><span class="badge badge-medium">{{ system }}</span></td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--cyan)">{{ model }}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--primary-l)">{{ endpoint }}</td>
+            <td style="color:var(--emerald);font-weight:600">{{ count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+const t = getChartTheme();
+
+// Outbreak forecast
+new Chart(document.getElementById('outbreak-chart'),{
+  type:'line',
+  data:{labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'],datasets:[
+    {label:'Dengue Risk',data:[2.1,2.8,3.5,4.2,5.1,6.3,5.8,4.1,3.2],borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,.15)',fill:true,tension:.4,pointRadius:4},
+    {label:'Malaria Risk',data:[1.8,2.2,2.9,3.8,4.5,5.2,4.8,3.5,2.8],borderColor:'#F59E0B',backgroundColor:'rgba(245,158,11,.1)',fill:true,tension:.4,pointRadius:4},
+    {label:'Typhoid Risk',data:[1.5,1.8,2.1,2.4,2.8,3.1,2.9,2.5,2.0],borderColor:'#8B5CF6',borderDash:[5,5],fill:false,tension:.4,pointRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:t.text,padding:12,usePointStyle:true}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{x:{grid:{color:t.grid},ticks:{color:t.text}},y:{grid:{color:t.grid},ticks:{color:t.text},title:{display:true,text:'Risk Score (0-10)',color:t.text}}}}
+});
+
+// Medicine type pie
+new Chart(document.getElementById('med-type-chart'),{
+  type:'polarArea',
+  data:{labels:['Antipyretics','Antimalarials','Antibiotics','ORS','Vitamins','Antifungals'],datasets:[{data:[30,20,25,12,8,5],backgroundColor:['rgba(37,99,235,.7)','rgba(239,68,68,.7)','rgba(16,185,129,.7)','rgba(6,182,212,.7)','rgba(245,158,11,.7)','rgba(139,92,246,.7)'],borderColor:'transparent'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:t.text,padding:8,font:{size:10},usePointStyle:true}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{r:{grid:{color:t.grid},ticks:{display:false}}}}
+});
+
+// Supply radar
+new Chart(document.getElementById('supply-radar'),{
+  type:'radar',
+  data:{labels:['Delivery Speed','Accuracy','Stock Coverage','Cost Efficiency','Route Optimization','Vendor Reliability'],datasets:[
+    {label:'Current',data:[82,90,74,68,88,85],borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,.15)',pointBackgroundColor:'#2563EB'},
+    {label:'Target',data:[95,95,90,85,92,90],borderColor:'#06B6D4',backgroundColor:'rgba(6,182,212,.05)',borderDash:[5,5],pointBackgroundColor:'#06B6D4'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:t.text,padding:10,usePointStyle:true}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{r:{grid:{color:t.grid},angleLines:{color:t.grid},pointLabels:{color:t.text,font:{size:10}},ticks:{display:false},min:0,max:100}}}
+});
+</script>
+{% endblock %}

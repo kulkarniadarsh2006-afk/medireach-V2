@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Demand Prediction{% endblock %}
+{% block page_title %}Demand Prediction Engine{% endblock %}
+{% block breadcrumb %}Demand Prediction{% endblock %}
+{% block content %}
+<div class="inner-content animate-in">
+  <div class="section-hdr">
+    <span class="section-title">📈 AI-Powered Medicine Demand Forecasting</span>
+    <div style="display:flex;gap:.75rem">
+      <select class="form-control" id="filter-village" onchange="loadDemand()" style="width:auto">
+        <option value="">All Villages</option>
+        {% for v in villages %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+      </select>
+      <select class="form-control" id="filter-days" onchange="loadDemand()" style="width:auto">
+        <option value="5">5 Days</option>
+        <option value="7" selected>7 Days</option>
+        <option value="30">30 Days</option>
+      </select>
+      <button class="btn btn-primary" onclick="loadDemand()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- DEMAND KPIs -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:1.5rem">
+    <div class="kpi-card kpi-blue"><div class="kpi-header"><span class="kpi-emoji">📊</span><span class="kpi-trend trend-up">Real-time</span></div><div class="kpi-val" id="d-total">—</div><div class="kpi-label">Total Predicted Demand</div><div class="kpi-sub">All villages combined</div></div>
+    <div class="kpi-card kpi-red"><div class="kpi-header"><span class="kpi-emoji">🔴</span></div><div class="kpi-val" id="d-critical">—</div><div class="kpi-label">Critical Shortages</div><div class="kpi-sub">Immediate action needed</div></div>
+    <div class="kpi-card kpi-amber"><div class="kpi-header"><span class="kpi-emoji">⚠️</span></div><div class="kpi-val" id="d-high">—</div><div class="kpi-label">High Risk Villages</div><div class="kpi-sub">&lt;5 days stock remaining</div></div>
+    <div class="kpi-card kpi-emerald"><div class="kpi-header"><span class="kpi-emoji">✅</span></div><div class="kpi-val" id="d-safe">—</div><div class="kpi-label">Safe Villages</div><div class="kpi-sub">Stock adequate</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Predicted Medicine Demand Table</div>
+      <button class="btn btn-outline btn-sm" onclick="exportTable()">📥 Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Village</th><th>Medicine</th><th>Category</th><th>Current Stock</th><th>Predicted Demand</th><th>Days Remaining</th><th>Outbreak Factor</th><th>Weather Factor</th><th>Risk Level</th></tr></thead>
+        <tbody id="demand-tbody"><tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text3)">Loading AI predictions...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEMAND CHART -->
+  <div class="dash-grid-2" style="margin-top:1.5rem">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Medicine Demand by Village</div></div>
+      <div class="chart-wrap"><canvas id="village-demand-chart" height="220"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Risk Distribution</div></div>
+      <div class="chart-wrap"><canvas id="risk-chart" height="220"></canvas></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+let demandChart, riskChart;
+function riskColor(r){return{Critical:'#EF4444',High:'#F59E0B',Medium:'#3B82F6',Low:'#10B981'}[r]||'#94A3B8';}
+function riskBadge(r){return`<span class="badge badge-${r.toLowerCase()}">${r}</span>`;}
+
+async function loadDemand() {
+  const days = document.getElementById('filter-days').value;
+  const tbody = document.getElementById('demand-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span> Running AI forecast...</td></tr>';
+  
+  const res = await fetch(`/api/demand-prediction?days=${days}`);
+  const data = await res.json();
+  const preds = data.predictions;
+  
+  let total=0, crit=0, high=0, safe=0;
+  const filtered = document.getElementById('filter-village').value 
+    ? preds.filter(p=>p.village_id===document.getElementById('filter-village').value) : preds;
+  
+  filtered.forEach(p=>{total+=p.predicted_demand;if(p.risk==='Critical')crit++;else if(p.risk==='High')high++;else if(p.risk==='Low'||p.risk==='Safe')safe++;});
+  
+  document.getElementById('d-total').textContent=total.toLocaleString('en-IN');
+  document.getElementById('d-critical').textContent=crit;
+  document.getElementById('d-high').textContent=high;
+  document.getElementById('d-safe').textContent=safe;
+  
+  tbody.innerHTML = filtered.slice(0,50).map(p=>`
+    <tr>
+      <td><strong>${p.village}</strong></td>
+      <td>${p.medicine}</td>
+      <td><span style="font-size:.72rem;color:var(--text3)">${p.category}</span></td>
+      <td><strong>${p.current_stock}</strong> units</td>
+      <td style="color:var(--primary-l);font-weight:700">${p.predicted_demand} units</td>
+      <td style="color:${p.days_remaining<5?'var(--red)':p.days_remaining<10?'var(--amber)':'var(--emerald)'};font-weight:700">${p.days_remaining} days</td>
+      <td><span style="font-size:.78rem;font-family:'JetBrains Mono',monospace">${p.outbreak_factor}x</span></td>
+      <td><span style="font-size:.78rem;font-family:'JetBrains Mono',monospace">${p.weather_factor}x</span></td>
+      <td>${riskBadge(p.risk)}</td>
+    </tr>
+  `).join('');
+  
+  updateCharts(filtered);
+}
+
+function updateCharts(data) {
+  const t = getChartTheme();
+  const villages = [...new Set(data.map(d=>d.village))].slice(0,6);
+  const demandByVillage = villages.map(v=>data.filter(d=>d.village===v).reduce((s,d)=>s+d.predicted_demand,0));
+  
+  if(demandChart) demandChart.destroy();
+  demandChart = new Chart(document.getElementById('village-demand-chart'),{
+    type:'bar',
+    data:{labels:villages,datasets:[{label:'Predicted Demand',data:demandByVillage,backgroundColor:villages.map((_,i)=>`hsl(${200+i*30},70%,60%)`),borderRadius:8}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}},scales:{x:{grid:{color:t.grid},ticks:{color:t.text}},y:{grid:{color:t.grid},ticks:{color:t.text}}}}
+  });
+  
+  const riskCounts = {Critical:0,High:0,Medium:0,Low:0};
+  data.forEach(d=>riskCounts[d.risk]=(riskCounts[d.risk]||0)+1);
+  
+  if(riskChart) riskChart.destroy();
+  riskChart = new Chart(document.getElementById('risk-chart'),{
+    type:'doughnut',
+    data:{labels:Object.keys(riskCounts),datasets:[{data:Object.values(riskCounts),backgroundColor:['#EF4444','#F59E0B','#3B82F6','#10B981'],borderColor:'transparent'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:t.text,padding:10,usePointStyle:true}},tooltip:{backgroundColor:t.tooltipBg,borderColor:t.tooltipBorder,borderWidth:1}}}
+  });
+}
+
+function exportTable() {
+  showToast('Demand forecast exported as CSV', '📥');
+}
+
+loadDemand();
+</script>
+{% endblock %}
