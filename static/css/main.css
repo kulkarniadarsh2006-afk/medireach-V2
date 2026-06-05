@@ -86,7 +86,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .sidebar-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;padding:.5rem .25rem .25rem}
 
 /* Persona selector */
-.persona-selector{background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:.625rem;margin-bottom:.5rem}
+.persona-selector{position:relative;background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:.625rem;margin-bottom:.5rem}
 .persona-current{display:flex;align-items:center;gap:.5rem;font-size:.8rem;font-weight:600;color:var(--text);cursor:pointer;position:relative}
 .persona-select{width:100%;background:transparent;border:none;color:transparent;position:absolute;inset:0;opacity:0;cursor:pointer;font-size:.8rem}
 

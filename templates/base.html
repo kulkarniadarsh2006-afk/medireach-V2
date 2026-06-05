@@ -47,14 +47,21 @@
   <!-- Persona Selector -->
   <div class="persona-selector">
     <label class="sidebar-label">Active Role</label>
+    {% set current_role = request.args.get('persona', user.role if user else 'PHC Administrator') %}
+    {% set current_icon = '👤' %}
+    {% for p in personas %}
+      {% if p.role == current_role %}
+        {% set current_icon = p.icon %}
+      {% endif %}
+    {% endfor %}
     <div class="persona-current" id="persona-display">
-      <span id="persona-icon">🏛️</span>
-      <span id="persona-name">PHC Administrator</span>
+      <span id="persona-icon">{{ current_icon }}</span>
+      <span id="persona-name">{{ current_role }}</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <select class="persona-select" id="persona-select" onchange="switchPersona(this.value)">
       {% for p in personas %}
-      <option value="{{ p.role }}" data-icon="{{ p.icon }}">{{ p.icon }} {{ p.role }}</option>
+      <option value="{{ p.role }}" data-icon="{{ p.icon }}" {% if p.role == current_role %}selected{% endif %}>{{ p.icon }} {{ p.role }}</option>
       {% endfor %}
     </select>
   </div>

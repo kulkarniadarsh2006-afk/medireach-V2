@@ -28,7 +28,7 @@ function switchPersona(role) {
     'Village Healthcare Worker': '🏥', 'Medicine Inventory Manager': '💊',
     'Distribution Planner': '📋', 'Transportation Coordinator': '🚚',
     'PHC Administrator': '🏛️', 'Rural Patient': '👤',
-    'District Health Officer': '👨⚕️', 'Data Analyst': '📊',
+    'District Health Officer': '👨‍⚕️', 'Data Analyst': '📊',
     'Supply Chain Manager': '🔗', 'Emergency Coordinator': '🚨',
     'Government Inspector': '🏛️'
   };
@@ -36,7 +36,27 @@ function switchPersona(role) {
   const nameEl = document.getElementById('persona-name');
   if (iconEl) iconEl.textContent = icons[role] || '👤';
   if (nameEl) nameEl.textContent = role;
-  showToast('Role switched to ' + role, '👤');
+  
+  fetch('/api/auth/switch-role', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: role })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Role switched to ' + role, '👤');
+      setTimeout(() => {
+        // Reload current page, updating search params
+        const url = new URL(window.location.href);
+        url.searchParams.set('persona', role);
+        window.location.href = url.toString();
+      }, 500);
+    }
+  })
+  .catch(() => {
+    showToast('Role switched (local demo) to ' + role, '👤');
+  });
 }
 
 // ─── TOAST ───

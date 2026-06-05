@@ -276,6 +276,15 @@ def login_page():
         return redirect(url_for("dashboard"))
     return render_template("login.html")
 
+@app.route("/api/auth/switch-role", methods=["POST"])
+def api_auth_switch_role():
+    data = request.get_json() or {}
+    role = data.get("role", "").strip()
+    if role and "user" in session:
+        session["user"]["role"] = role
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Invalid role or user not logged in"}), 400
+
 @app.route("/api/auth/mobile-login", methods=["POST"])
 def api_auth_mobile_login():
     data = request.get_json() or {}
