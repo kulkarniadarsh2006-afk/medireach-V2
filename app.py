@@ -159,6 +159,8 @@ def calculate_risk_level(current_stock, daily_demand):
 
 @app.route("/")
 def index():
+    if "user" in session:
+        return redirect(url_for("dashboard"))
     stats = {
         "villages": len(VILLAGES),
         "medicines": len(MEDICINES),
