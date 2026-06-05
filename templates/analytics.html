@@ -7,8 +7,8 @@
   <div class="section-hdr">
     <span class="section-title">🔬 Disease Outbreak Forecasts &amp; Supply Chain Analytics</span>
     <div style="display:flex;gap:.75rem">
-      <button class="btn btn-outline" onclick="showToast('Analytics exported','📥')">Export</button>
-      <button class="btn btn-primary">Generate Report</button>
+      <button class="btn btn-outline" onclick="exportAnalyticsCSV()">📥 Export CSV</button>
+      <button class="btn btn-primary" onclick="generateExecutiveReport()">📄 Generate Report</button>
     </div>
   </div>
 
@@ -215,6 +215,96 @@ async function submitAccessRequest(event) {
     submitBtn.disabled = false;
     submitBtn.innerHTML = 'Request Access';
   }, 1200);
+}
+
+// Export Analytics Data as CSV File
+function exportAnalyticsCSV() {
+  const csvContent = 
+`MediReach AI - Advanced Analytics Export
+Generated at,${new Date().toLocaleString()}
+Accuracy Rate,94%
+
+Disease Outbreak Risk Projections (90-Day Forecast)
+Month,Dengue Risk (0-10),Malaria Risk (0-10),Typhoid Risk (0-10)
+Jan,2.1,1.8,1.5
+Feb,2.8,2.2,1.8
+Mar,3.5,2.9,2.1
+Apr,4.2,3.8,2.4
+May,5.1,4.5,2.8
+Jun,6.3,5.2,3.1
+Jul,5.8,4.8,2.9
+Aug,4.1,3.5,2.5
+Sep,3.2,2.8,2.0
+
+Supply Chain Performance Metrics
+Metric,Current Score,Target Score
+Delivery Speed,82%,95%
+Accuracy,90%,95%
+Stock Coverage,74%,90%
+Cost Efficiency,68%,85%
+Route Optimization,88%,92%
+Vendor Reliability,85%,90%
+`;
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "medireach_analytics_export.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showToast('CSV report exported and saved to downloads!', '📥');
+}
+
+// Generate Detailed Executive Report as Text File
+function generateExecutiveReport() {
+  const reportContent = 
+`==================================================
+        MEDIREACH AI - EXECUTIVE SUMMARY REPORT
+==================================================
+Generated on: ${new Date().toLocaleString()}
+Author: Adarsh (Active Role: PHC Administrator)
+Status: Active Emergencies Monitored
+
+1. DISEASE OUTBREAK FORECASTS (90-Day Outlook)
+--------------------------------------------------
+- Dengue Risk is projected to peak in June (Risk Score: 6.3/10)
+  linked to seasonal monsoon forecasting.
+- Malaria Risk follows a similar trend, peaking at 5.2/10.
+- Typhoid Risk remains moderate, steady around 3.1/10.
+
+2. SUPPLY CHAIN PERFORMANCE MATRIX
+--------------------------------------------------
+- Delivery Speed: 82% (Target: 95%)
+- Fulfillment Accuracy: 90% (Target: 95%)
+- Stock Coverage: 74% (Target: 90%) - Alert! Action required.
+- Cost Efficiency: 68% (Target: 85%)
+- Route Optimization: 88% (Target: 92%)
+- Vendor Reliability: 85% (Target: 90%)
+
+3. EXECUTIVE RECOMMENDATIONS
+--------------------------------------------------
+* [CRITICAL] Mobilize emergency stock reserves to high-risk Dengue zones in Raichur and Koppal immediately.
+* [LOGISTICS] Optimize transport van capacities to bridge the 13% gap in delivery speed.
+* [AUDIT] Initiate a village-level inventory audit to reconcile the 74% stock coverage rate.
+
+==================================================
+           END OF REPORT - MEDIREACH AI
+==================================================
+`;
+
+  const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "medireach_health_report.txt");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showToast('Executive Report generated and downloaded!', '📄');
 }
 </script>
 {% endblock %}
