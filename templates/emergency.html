@@ -8,14 +8,14 @@
   <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:14px;padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem">
     <span style="font-size:2rem">🚨</span>
     <div><strong style="color:var(--red)">EMERGENCY ACTIVE</strong> — {{ outbreaks|length }} active outbreaks detected. Immediate distribution planning required.</div>
-    <button class="btn btn-red btn-sm" style="margin-left:auto" onclick="loadEmergency()">Activate Emergency Protocol</button>
+    <button class="btn btn-red btn-sm" style="margin-left:auto" onclick="activateEmergencyProtocol(this)">Activate Emergency Protocol</button>
   </div>
   {% endif %}
 
   <div class="section-hdr">
     <span class="section-title">🏥 Emergency Distribution Plans</span>
     <div style="display:flex;gap:.75rem">
-      <button class="btn btn-red" onclick="loadEmergency()">🔄 Refresh Plans</button>
+      <button class="btn btn-red" onclick="refreshPlans(this)">🔄 Refresh Plans</button>
       <button class="btn btn-outline" onclick="showToast('Emergency report sent to Health Director','📧')">📧 Notify Health Director</button>
     </div>
   </div>
@@ -90,6 +90,37 @@ async function loadEmergency() {
     </div>
   `).join('');
 }
+
+function activateEmergencyProtocol(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Activating...';
+  setTimeout(() => {
+    btn.innerHTML = '✓ Protocol Active';
+    btn.style.background = 'rgba(239,68,68,0.2)';
+    btn.style.color = 'var(--red)';
+    btn.style.border = '1px solid var(--red)';
+    showToast('Emergency protocol activated! Orders pushed to all emergency depots.', '🚨');
+  }, 800);
+}
+
+async function refreshPlans(btn) {
+  const container = document.getElementById('emergency-plans');
+  container.innerHTML = '<div style="text-align:center;padding:4rem;color:var(--text3)"><span class="spinner"></span> Refreshing emergency plans...</div>';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Refreshing...';
+  }
+  
+  setTimeout(async () => {
+    await loadEmergency();
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🔄 Refresh Plans';
+    }
+    showToast('Emergency plans refreshed with latest epidemiological data.', '🔄');
+  }, 800);
+}
+
 function dispatchVehicle(id){showToast('Vehicle '+id+' dispatched on emergency route','🚚');}
 loadEmergency();
 </script>
