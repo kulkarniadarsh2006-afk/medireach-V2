@@ -389,4 +389,36 @@ async function loadNotifications() {
   }
 }
 
+// ─── WEBSOCKET REAL-TIME LIVE UPDATES ───
+(function() {
+  if (typeof io === 'undefined') return;
+
+  const socket = io();
+
+  socket.on('connect', () => {
+    console.log('⚡ Connected to MediReach Live Data Feed via WebSocket.');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Disconnected from WebSocket.');
+  });
+
+  socket.on('data_updated', (data) => {
+    console.log('🔔 Live Update Received:', data);
+    
+    const icon = data.icon || '🔔';
+    const message = data.message || 'New live update received.';
+    
+    if (typeof showToast === 'function') {
+      showToast(`${message} (Refreshing in 3s...)`, icon);
+    }
+    
+    // Smoothly reload the current page state to display live backend updates
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+  });
+})();
+
+
 
