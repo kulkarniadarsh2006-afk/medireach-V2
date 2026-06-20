@@ -32,6 +32,8 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     raise ValueError("Missing required environment variables: SUPABASE_URL and SUPABASE_ANON_KEY must be set in the environment or .env file.")
 
 SUPABASE_URL = SUPABASE_URL.strip().rstrip('/')
+if SUPABASE_URL.endswith('/rest/v1'):
+    SUPABASE_URL = SUPABASE_URL[:-8].rstrip('/')
 SUPABASE_ANON_KEY = SUPABASE_ANON_KEY.strip()
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
