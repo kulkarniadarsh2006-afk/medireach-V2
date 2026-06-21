@@ -49,6 +49,11 @@ def safe_print(text):
 # DATABASE ACCESS HELPERS (NATIVE HTTP REST CLIENT)
 # ─────────────────────────────────────────────
 
+# Shared SSL context — created once at startup, reused for all requests
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
+
 def supabase_request(endpoint, method="GET", data=None):
     url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
     headers = {
@@ -57,18 +62,46 @@ def supabase_request(endpoint, method="GET", data=None):
         "Content-Type": "application/json",
         "Prefer": "return=representation"
     }
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    
     req_data = json.dumps(data).encode('utf-8') if data is not None else None
     req = urllib.request.Request(url, data=req_data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, context=ctx) as response:
+        with urllib.request.urlopen(req, context=_SSL_CTX) as response:
             return json.loads(response.read().decode('utf-8'))
     except Exception as e:
         safe_print(f"Supabase HTTP Request Error on {endpoint}: {e}")
         raise e
+
+# ─────────────────────────────────────────────
+# IN-MEMORY TTL CACHE  (60s for reads, avoids hammering Supabase)
+# ─────────────────────────────────────────────
+
+_CACHE: dict = {}
+_CACHE_LOCK = threading.Lock()
+CACHE_TTL = 60  # seconds
+
+def _cache_get(key):
+    with _CACHE_LOCK:
+        entry = _CACHE.get(key)
+        if entry and (time.time() - entry['ts']) < CACHE_TTL:
+            return entry['data']
+    return None
+
+def _cache_set(key, data):
+    with _CACHE_LOCK:
+        _CACHE[key] = {'data': data, 'ts': time.time()}
+
+def _cache_invalidate(key):
+    with _CACHE_LOCK:
+        _CACHE.pop(key, None)
+
+def cached_supabase_get(endpoint, cache_key):
+    """GET with 60-second TTL cache."""
+    hit = _cache_get(cache_key)
+    if hit is not None:
+        return hit
+    data = supabase_request(endpoint)
+    _cache_set(cache_key, data)
+    return data
 
 # Verify database connection on startup
 try:
@@ -173,7 +206,7 @@ PERSONAS = [
 
 def db_get_villages():
     try:
-        rows = supabase_request("phcs?select=*")
+        rows = cached_supabase_get("phcs?select=*", "villages")
         if not rows:
             return []
         villages = []
@@ -182,11 +215,11 @@ def db_get_villages():
             name = r.get("PHC_Name") or r.get("name") or f"PHC {idx}"
             pop = r.get("Population_Covered") or r.get("population") or 15000
             dist = r.get("District") or r.get("district") or "Unknown"
-            
+
             h = hash(code)
             lat = 14.5 + abs(h % 300) / 100.0
             lng = 74.8 + abs((h // 3) % 400) / 100.0
-            
+
             villages.append({
                 "id": code,
                 "name": name.replace("PHC ", "").replace("PHC", "").strip(),
@@ -205,7 +238,7 @@ def db_get_villages():
 
 def db_get_medicines():
     try:
-        rows = supabase_request("medicines?select=*")
+        rows = cached_supabase_get("medicines?select=*", "medicines")
         if not rows:
             return []
         return rows
@@ -215,7 +248,7 @@ def db_get_medicines():
 
 def db_get_inventory():
     try:
-        rows = supabase_request("inventory?select=*")
+        rows = cached_supabase_get("inventory?select=*", "inventory")
         if not rows:
             return {}
         inv_data = {}
@@ -233,7 +266,7 @@ def db_get_inventory():
 
 def db_get_outbreaks():
     try:
-        rows = supabase_request("disease_outbreaks?select=*")
+        rows = cached_supabase_get("disease_outbreaks?select=*", "outbreaks")
         if not rows:
             return []
         outbreaks = []
@@ -253,16 +286,23 @@ def db_get_outbreaks():
         return []
 
 def db_get_shortage_alerts():
+    """Compute shortage alerts from cached DB data. Results cached for 60s."""
+    cached = _cache_get("shortage_alerts")
+    if cached is not None:
+        return cached
+
     try:
         villages = db_get_villages()
         medicines = db_get_medicines()
         inventory = db_get_inventory()
         outbreaks = db_get_outbreaks()
-        
+
+        # Pre-build outbreak lookup: village_id -> outbreak
+        outbreak_map = {d["village_id"]: d for d in outbreaks}
+
         alerts = []
-        alerts_to_sync = []
         for v in villages:
-            outbreak = next((d for d in outbreaks if d["village_id"] == v["id"]), None)
+            outbreak = outbreak_map.get(v["id"])
             for m in medicines:
                 stock = inventory.get(v["id"], {}).get(m["id"], 0)
                 daily = get_daily_consumption(v["id"], m["id"], villages)
@@ -270,8 +310,7 @@ def db_get_shortage_alerts():
                 if risk in ["Critical", "High", "Medium"]:
                     stockout_date = (datetime.now() + timedelta(days=days_rem)).strftime("%Y-%m-%d")
                     action = f"Dispatch {max(0, predict_demand(v['id'], m['id'], 14, villages, outbreaks) - stock)} units within {max(1, int(days_rem)-1)} days"
-                    
-                    alert_item = {
+                    alerts.append({
                         "village": v["name"],
                         "village_id": v["id"],
                         "district": v["district"],
@@ -286,43 +325,23 @@ def db_get_shortage_alerts():
                         "outbreak_linked": outbreak["disease"] if outbreak else None,
                         "weather_alert": WEATHER_DATA.get(v["id"], {}).get("alert"),
                         "action_required": action
-                    }
-                    alerts.append(alert_item)
-                    alerts_to_sync.append({
-                        "phc_code": v["id"],
-                        "medicine_id": m["id"],
-                        "current_stock": stock,
-                        "daily_consumption": daily,
-                        "days_remaining": days_rem,
-                        "risk_level": risk,
-                        "estimated_stockout": stockout_date,
-                        "action_required": action,
-                        "outbreak_linked": outbreak["disease"] if outbreak else None,
-                        "weather_alert": WEATHER_DATA.get(v["id"], {}).get("alert")
                     })
-        
-        if alerts_to_sync:
-            try:
-                # Clear and insert current alerts via REST DELETE and POST
-                supabase_request("shortage_alerts?id=gt.0", method="DELETE")
-                supabase_request("shortage_alerts", method="POST", data=alerts_to_sync[:100])
-            except Exception as e:
-                safe_print(f"Error syncing alerts: {e}")
-                
+
         alerts.sort(key=lambda x: ({"Critical": 0, "High": 1, "Medium": 2}.get(x["risk_level"], 3), x["days_remaining"]))
+        _cache_set("shortage_alerts", alerts)
         return alerts
     except Exception as e:
-        safe_print(f"Error in dynamic shortage alert calculation: {e}")
+        safe_print(f"Error in shortage alert calculation: {e}")
         return []
 
 def db_get_shipments():
     try:
-        rows = supabase_request("logistics_shipments?select=*")
+        rows = cached_supabase_get("logistics_shipments?select=*", "shipments")
         if not rows:
             return []
         schedule = []
-        villages = {v["id"]: v for v in db_get_villages()}
-        medicines = {m["id"]: m for m in db_get_medicines()}
+        villages = {v["id"]: v for v in db_get_villages()}   # served from cache
+        medicines = {m["id"]: m for m in db_get_medicines()}  # served from cache
         for r in rows:
             dest_code = r.get("destination_phc_code")
             med_id = r.get("medicine_id")
@@ -429,148 +448,116 @@ simulation_thread = None
 thread_lock = threading.Lock()
 
 def simulate_data_stream():
-    """Simulates live database updates to medicine counts, outbreak severities, and weather conditions every 10 seconds."""
-    time.sleep(5)  # Wait for server to fully initialize
-    safe_print("WebSocket live update database-driven simulation thread started.")
-    
+    """Simulates live updates every 30s. Uses cached data wherever possible."""
+    time.sleep(5)
+    safe_print("WebSocket live update simulation thread started.")
+
     while True:
         try:
-            time.sleep(10)
-            
-            # Select which type of update to simulate
+            time.sleep(30)  # Reduced from 10s → 30s to cut Supabase load
+
             update_type = random.choice([0, 1, 2, 3])
-            
+
             if update_type == 0:
-                res = supabase_request("disease_outbreaks?select=*")
-                outbreaks = res
-                if outbreaks:
-                    outbreak = random.choice(outbreaks)
+                # Use cached outbreaks — only write back if we actually change something
+                outbreaks_raw = cached_supabase_get("disease_outbreaks?select=*", "outbreaks")
+                if outbreaks_raw:
+                    outbreak = random.choice(outbreaks_raw)
                     delta = random.randint(1, 8)
                     new_affected = outbreak["affected"] + delta
-                    
                     new_severity = outbreak["severity"]
                     if outbreak["severity"] == "Medium" and random.random() < 0.2:
                         new_severity = "High"
                     elif outbreak["severity"] == "High" and random.random() < 0.1:
                         new_severity = "Critical"
-                        
                     try:
-                        supabase_request(f"disease_outbreaks?id=eq.{outbreak['id']}", method="PATCH", data={
-                            "affected": new_affected,
-                            "severity": new_severity
-                        })
+                        supabase_request(f"disease_outbreaks?id=eq.{outbreak['id']}", method="PATCH",
+                                         data={"affected": new_affected, "severity": new_severity})
+                        # Invalidate cached outbreaks so next read gets fresh data
+                        _cache_invalidate("outbreaks")
                     except Exception as e:
-                        safe_print(f"Warning: Could not write outbreak update to database: {e}")
-                    
-                    phc_res = supabase_request(f"phcs?PHC_Code=eq.{outbreak['phc_code']}&select=PHC_Name")
-                    phc_name = phc_res[0]["PHC_Name"] if phc_res else outbreak["phc_code"]
-                    
-                    message = f"Outbreak Alert: Active {outbreak['disease']} cases in {phc_name} increased to {new_affected} ({new_severity} priority)."
-                    socketio.emit("data_updated", {
-                        "type": "outbreak",
-                        "message": message,
-                        "icon": "🦠"
-                    })
-                    safe_print(f"[WS DB EMIT] {message}")
-                    
+                        safe_print(f"Warning: Could not write outbreak update: {e}")
+
+                    # Use cached PHC name lookup
+                    villages_raw = cached_supabase_get("phcs?select=*", "villages")
+                    phc_name = next((r.get("PHC_Name", outbreak["phc_code"])
+                                     for r in villages_raw if r.get("PHC_Code") == outbreak["phc_code"]), outbreak["phc_code"])
+                    message = (f"Outbreak Alert: {outbreak['disease']} in {phc_name} "
+                               f"increased to {new_affected} ({new_severity}).")
+                    socketio.emit("data_updated", {"type": "outbreak", "message": message, "icon": "🦠"})
+
             elif update_type == 1:
-                res = supabase_request("inventory?select=*")
-                inv_items = res
+                inv_items = cached_supabase_get("inventory?select=*", "inventory")
                 if inv_items:
                     item = random.choice(inv_items)
                     phc_code = item["phc_code"]
                     med_id = item["medicine_id"]
                     current_stock = item["stock"]
-                    
-                    phc_res = supabase_request(f"phcs?PHC_Code=eq.{phc_code}&select=PHC_Name")
-                    phc_name = phc_res[0]["PHC_Name"] if phc_res else phc_code
-                    med_res = supabase_request(f"medicines?id=eq.{med_id}&select=name")
-                    med_name = med_res[0]["name"] if med_res else med_id
-                    
+
+                    villages_raw = cached_supabase_get("phcs?select=*", "villages")
+                    meds_raw = cached_supabase_get("medicines?select=*", "medicines")
+                    phc_name = next((r.get("PHC_Name", phc_code) for r in villages_raw if r.get("PHC_Code") == phc_code), phc_code)
+                    med_name = next((r.get("name", med_id) for r in meds_raw if r.get("id") == med_id), med_id)
+
                     if random.random() < 0.8:
                         drop = random.randint(15, 60)
                         new_stock = max(0, current_stock - drop)
                         try:
-                            supabase_request(f"inventory?phc_code=eq.{phc_code}&medicine_id=eq.{med_id}", method="PATCH", data={"stock": new_stock})
+                            supabase_request(f"inventory?phc_code=eq.{phc_code}&medicine_id=eq.{med_id}",
+                                             method="PATCH", data={"stock": new_stock})
+                            _cache_invalidate("inventory")
                         except Exception as e:
-                            safe_print(f"Warning: Could not write inventory drop to database: {e}")
-                        message = f"Stock update: {med_name} inventory in {phc_name} dropped to {new_stock} units."
+                            safe_print(f"Warning: Could not write inventory drop: {e}")
+                        message = f"Stock update: {med_name} in {phc_name} dropped to {new_stock} units."
                         icon = "📉"
                     else:
                         refill = random.randint(100, 300)
                         new_stock = current_stock + refill
                         try:
-                            supabase_request(f"inventory?phc_code=eq.{phc_code}&medicine_id=eq.{med_id}", method="PATCH", data={"stock": new_stock})
+                            supabase_request(f"inventory?phc_code=eq.{phc_code}&medicine_id=eq.{med_id}",
+                                             method="PATCH", data={"stock": new_stock})
+                            _cache_invalidate("inventory")
                         except Exception as e:
-                            safe_print(f"Warning: Could not write inventory refill to database: {e}")
+                            safe_print(f"Warning: Could not write inventory refill: {e}")
                         message = f"Supply Dispatch: Refilled {refill} units of {med_name} at {phc_name}."
                         icon = "🚚"
-                        
-                    socketio.emit("data_updated", {
-                        "type": "inventory",
-                        "message": message,
-                        "icon": icon
-                    })
-                    safe_print(f"[WS DB EMIT] {message}")
-                    
+                    socketio.emit("data_updated", {"type": "inventory", "message": message, "icon": icon})
+
             elif update_type == 2:
-                # Update weather
-                villages = db_get_villages()
-                if villages:
-                    phc = random.choice(villages)
-                    code = phc["id"]
-                    name = phc["name"]
-                    
-                    weather = WEATHER_DATA[code]
+                # Weather is in-memory — no Supabase call needed
+                if WEATHER_CACHE:
+                    code = random.choice(list(WEATHER_CACHE.keys()))
+                    weather = WEATHER_CACHE[code]
                     temp_delta = random.choice([-2, -1, 1, 2])
                     weather["temp"] = max(10, min(50, weather["temp"] + temp_delta))
-                    
                     if random.random() < 0.5:
                         weather["rainfall"] = max(0, weather["rainfall"] + random.randint(-5, 15))
                         if weather["rainfall"] > 50:
-                            weather["alert"] = "Flood Risk"
-                            weather["road_condition"] = "Critical"
+                            weather["alert"] = "Flood Risk"; weather["road_condition"] = "Critical"
                         elif weather["rainfall"] > 30:
-                            weather["alert"] = "Heavy Rain"
-                            weather["road_condition"] = "Poor"
+                            weather["alert"] = "Heavy Rain"; weather["road_condition"] = "Poor"
                         else:
                             weather["alert"] = None
                             weather["road_condition"] = "Fair" if weather["rainfall"] > 10 else "Good"
-                    
-                    message = f"Weather Update: {name} is now {weather['temp']}°C with {weather['rainfall']}mm rain. Road is {weather['road_condition']}."
+                    message = (f"Weather: {code} now {weather['temp']}°C, {weather['rainfall']}mm rain. "
+                               f"Road: {weather['road_condition']}.")
                     if weather["alert"]:
-                        message += f" [ALERT: {weather['alert']}]"
-                        
-                    socketio.emit("data_updated", {
-                        "type": "weather",
-                        "message": message,
-                        "icon": "🌤️"
-                    })
-                    safe_print(f"[WS DB EMIT] {message}")
-                    
+                        message += f" [{weather['alert']}]"
+                    socketio.emit("data_updated", {"type": "weather", "message": message, "icon": "🌤️"})
+
             elif update_type == 3 and TRANSPORTATION:
                 vehicle = random.choice(TRANSPORTATION)
                 old_status = vehicle["status"]
-                
-                status_choices = ["Idle", "En Route", "Ready", "Maintenance"]
-                if old_status in status_choices:
-                    status_choices.remove(old_status)
-                new_status = random.choice(status_choices)
-                
+                choices = [s for s in ["Idle", "En Route", "Ready", "Maintenance"] if s != old_status]
+                new_status = random.choice(choices)
                 vehicle["status"] = new_status
-                vehicle["available"] = (new_status in ["Idle", "En Route", "Ready"])
-                
-                message = f"Logistics Alert: Vehicle {vehicle['id']} ({vehicle['type']}) changed status to {new_status}."
-                socketio.emit("data_updated", {
-                    "type": "logistics",
-                    "message": message,
-                    "icon": "🚛"
-                })
-                safe_print(f"[WS DB EMIT] {message}")
-                
+                vehicle["available"] = new_status in ["Idle", "En Route", "Ready"]
+                message = f"Logistics: Vehicle {vehicle['id']} ({vehicle['type']}) → {new_status}."
+                socketio.emit("data_updated", {"type": "logistics", "message": message, "icon": "🚛"})
+
         except Exception as e:
             safe_print(f"Error in WebSocket simulation thread: {e}")
-            time.sleep(5)
+            time.sleep(10)
 
 @socketio.on('connect')
 def handle_connect():
@@ -760,20 +747,20 @@ def api_kpi():
     inventory = db_get_inventory()
     outbreaks = db_get_outbreaks()
     alerts = db_get_shortage_alerts()
-    
+
     total_alerts = len([a for a in alerts if a["risk_level"] in ["Critical", "High"]])
-    
+
     all_pcts = []
     for v in villages:
         inv = inventory.get(v["id"], {})
         total = sum(inv.values())
         max_s = sum(get_daily_consumption(v["id"], m["id"], villages) * 30 for m in medicines)
         all_pcts.append(min(100, round((total / max(max_s, 1)) * 100)))
-        
+
     shipments = db_get_shipments()
     available_transport = len([t for t in TRANSPORTATION if t["available"]])
-    
-    return jsonify({
+
+    resp = jsonify({
         "villages_monitored": len(villages),
         "medicine_availability": round(sum(all_pcts) / len(all_pcts)) if all_pcts else 0,
         "active_alerts": total_alerts,
@@ -783,6 +770,8 @@ def api_kpi():
         "transport_vehicles": available_transport,
         "medicines_tracked": len(medicines),
     })
+    resp.headers["Cache-Control"] = "public, max-age=30"
+    return resp
 
 @app.route("/api/demand-prediction")
 def api_demand_prediction():
@@ -820,12 +809,22 @@ def api_demand_prediction():
 @app.route("/api/shortage-alerts")
 def api_shortage_alerts():
     alerts = db_get_shortage_alerts()
-    return jsonify({
+    resp = jsonify({
         "alerts": alerts,
         "total": len(alerts),
         "critical": sum(1 for a in alerts if a["risk_level"] == "Critical"),
         "generated_at": datetime.now().isoformat()
     })
+    resp.headers["Cache-Control"] = "public, max-age=30"
+    return resp
+
+@app.route("/api/cache/clear", methods=["POST"])
+def api_cache_clear():
+    """Clear all server-side TTL caches (admin endpoint)."""
+    with _CACHE_LOCK:
+        _CACHE.clear()
+    safe_print("[Cache] All caches cleared via API.")
+    return jsonify({"success": True, "message": "All caches cleared"})
 
 @app.route("/api/stock-transfers")
 def api_stock_transfers():
