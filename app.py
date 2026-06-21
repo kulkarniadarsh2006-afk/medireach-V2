@@ -1047,7 +1047,378 @@ def api_inventory_dist():
                 else: statuses["Adequate"] += 1
     return jsonify({"labels": list(statuses.keys()), "data": list(statuses.values())})
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RHIM PHC SYNC MONITOR
+# ─────────────────────────────────────────────────────────────────────────────
+
+RHIM_TABLE_READY = False   # set to True once table confirmed / created
+
+def _ensure_rhim_table():
+    """Probe whether rhim_sync_log exists; return True if it does."""
+    global RHIM_TABLE_READY
+    if RHIM_TABLE_READY:
+        return True
+    try:
+        supabase_request("rhim_sync_log?limit=1")
+        RHIM_TABLE_READY = True
+        return True
+    except Exception:
+        return False
+
+def _generate_rhim_ai_recommendations(sync_row):
+    """
+    Given one rhim_sync_log row, produce a list of AI recommendation strings.
+    Pure Python logic — no external AI API required.
+    """
+    recs = []
+    phc  = sync_row.get("phc_name", "this PHC")
+    dist = sync_row.get("district", "")
+
+    # ── Inventory recommendations ──────────────────────────────────────────
+    crit  = sync_row.get("inventory_critical_items", 0)
+    units = sync_row.get("inventory_total_units", 0)
+    items = sync_row.get("inventory_items_received", 0)
+
+    if crit >= 3:
+        recs.append({
+            "priority": "CRITICAL",
+            "icon": "🚨",
+            "category": "Inventory",
+            "recommendation": (
+                f"{phc} has {crit} critical medicine items at dangerously low stock. "
+                f"Dispatch emergency resupply of priority medicines to {dist or phc} within 24 hours."
+            )
+        })
+    elif crit >= 1:
+        recs.append({
+            "priority": "HIGH",
+            "icon": "⚠️",
+            "category": "Inventory",
+            "recommendation": (
+                f"{crit} medicine item(s) at {phc} are critically low. "
+                f"Schedule restocking within 48 hours to avoid stockout."
+            )
+        })
+    elif items > 0:
+        recs.append({
+            "priority": "LOW",
+            "icon": "✅",
+            "category": "Inventory",
+            "recommendation": (
+                f"Inventory sync successful for {phc}: {items} items ({units} units) received. "
+                "Stock levels appear adequate — continue routine monitoring."
+            )
+        })
+
+    # ── Disease report recommendations ────────────────────────────────────
+    cases  = sync_row.get("disease_cases_total", 0)
+    alerts = sync_row.get("disease_alerts", 0)
+
+    if alerts >= 2:
+        recs.append({
+            "priority": "CRITICAL",
+            "icon": "🦠",
+            "category": "Disease",
+            "recommendation": (
+                f"Multiple disease alerts ({alerts}) reported from {phc}. "
+                f"Activate outbreak response protocol. Notify District Health Officer for {dist or 'this district'} immediately."
+            )
+        })
+    elif alerts == 1:
+        recs.append({
+            "priority": "HIGH",
+            "icon": "🔬",
+            "category": "Disease",
+            "recommendation": (
+                f"Disease alert at {phc} with {cases} cases reported. "
+                "Deploy surveillance team and ensure adequate diagnostic kits and treatment medicines."
+            )
+        })
+    elif cases > 50:
+        recs.append({
+            "priority": "MEDIUM",
+            "icon": "📊",
+            "category": "Disease",
+            "recommendation": (
+                f"High patient load ({cases} cases) at {phc}. "
+                "Monitor disease trends closely and pre-position high-usage medicines."
+            )
+        })
+
+    # ── OPD recommendations ───────────────────────────────────────────────
+    opd_total  = sync_row.get("opd_patients_total", 0)
+    referred   = sync_row.get("opd_referred_cases", 0)
+    immunized  = sync_row.get("opd_immunizations", 0)
+
+    ref_pct = (referred / opd_total * 100) if opd_total else 0
+    if ref_pct > 20:
+        recs.append({
+            "priority": "HIGH",
+            "icon": "🏥",
+            "category": "OPD",
+            "recommendation": (
+                f"High referral rate ({ref_pct:.0f}%) at {phc} — {referred} of {opd_total} patients referred. "
+                "Consider specialist outreach or capacity expansion to reduce patient burden on district hospitals."
+            )
+        })
+    elif immunized > 0:
+        recs.append({
+            "priority": "LOW",
+            "icon": "💉",
+            "category": "OPD",
+            "recommendation": (
+                f"Immunization program active at {phc}: {immunized} immunizations completed this cycle. "
+                "Ensure cold chain integrity and adequate vaccine stock for next cycle."
+            )
+        })
+
+    if not recs:
+        recs.append({
+            "priority": "LOW",
+            "icon": "✅",
+            "category": "General",
+            "recommendation": (
+                f"Sync from {phc} completed with no critical flags. "
+                "All health indicators within normal range — no immediate action required."
+            )
+        })
+
+    return recs
+
+
+@app.route("/rhim-sync")
+def rhim_sync_page():
+    user = session.get("user")
+    villages = db_get_villages()
+    table_ok = _ensure_rhim_table()
+    return render_template(
+        "rhim_sync.html",
+        user=user, personas=PERSONAS,
+        villages=villages,
+        table_ready=table_ok
+    )
+
+
+@app.route("/api/rhim-sync/logs")
+def api_rhim_sync_logs():
+    """Return recent RHIM sync log entries."""
+    if not _ensure_rhim_table():
+        return jsonify({"error": "rhim_sync_log table not yet created", "logs": []}), 200
+
+    try:
+        limit = int(request.args.get("limit", 20))
+        phc   = request.args.get("phc", "")
+        endpoint = f"rhim_sync_log?order=synced_at.desc&limit={limit}"
+        if phc:
+            endpoint += f"&phc_code=eq.{phc}"
+        rows = supabase_request(endpoint)
+        # Attach AI recommendations to each row
+        for row in rows:
+            row["ai_recommendations"] = _generate_rhim_ai_recommendations(row)
+        return jsonify({"logs": rows, "count": len(rows)})
+    except Exception as e:
+        safe_print(f"RHIM sync logs error: {e}")
+        return jsonify({"error": str(e), "logs": []}), 200
+
+
+@app.route("/api/rhim-sync/latest")
+def api_rhim_sync_latest():
+    """Return the single most-recent sync entry per PHC."""
+    if not _ensure_rhim_table():
+        return jsonify({"error": "rhim_sync_log table not yet created", "latest": []}), 200
+
+    try:
+        rows = supabase_request("rhim_sync_log?order=synced_at.desc&limit=100")
+        seen = {}
+        for row in rows:
+            code = row.get("phc_code")
+            if code not in seen:
+                seen[code] = row
+        latest = list(seen.values())
+        for row in latest:
+            row["ai_recommendations"] = _generate_rhim_ai_recommendations(row)
+        return jsonify({"latest": latest, "count": len(latest)})
+    except Exception as e:
+        safe_print(f"RHIM latest error: {e}")
+        return jsonify({"error": str(e), "latest": []}), 200
+
+
+@app.route("/api/rhim-sync/push", methods=["POST"])
+def api_rhim_sync_push():
+    """
+    RHIM system pushes a sync event here.
+    Accepts JSON payload with PHC sync data and stores it in Supabase.
+    """
+    if not _ensure_rhim_table():
+        return jsonify({"error": "rhim_sync_log table not ready"}), 503
+
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            return jsonify({"error": "Empty payload"}), 400
+
+        required = ["phc_code", "phc_name"]
+        for field in required:
+            if field not in data:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+
+        import hashlib as _hl
+        sync_id = _hl.md5(
+            f"{data['phc_code']}-{datetime.now().isoformat()}".encode()
+        ).hexdigest()
+
+        row = {
+            "sync_id":                  sync_id,
+            "phc_code":                 data["phc_code"],
+            "phc_name":                 data["phc_name"],
+            "district":                 data.get("district", ""),
+            "synced_at":                datetime.now().isoformat(),
+            "sync_source":              data.get("sync_source", "RHIM"),
+            "inventory_items_received": data.get("inventory_items_received", 0),
+            "inventory_total_units":    data.get("inventory_total_units", 0),
+            "inventory_critical_items": data.get("inventory_critical_items", 0),
+            "disease_reports_received": data.get("disease_reports_received", 0),
+            "disease_cases_total":      data.get("disease_cases_total", 0),
+            "disease_alerts":           data.get("disease_alerts", 0),
+            "opd_patients_total":       data.get("opd_patients_total", 0),
+            "opd_new_cases":            data.get("opd_new_cases", 0),
+            "opd_referred_cases":       data.get("opd_referred_cases", 0),
+            "opd_immunizations":        data.get("opd_immunizations", 0),
+            "inventory_payload":        json.dumps(data.get("inventory_payload", {})),
+            "disease_payload":          json.dumps(data.get("disease_payload", {})),
+            "opd_payload":              json.dumps(data.get("opd_payload", {})),
+            "sync_status":              "completed",
+        }
+
+        result = supabase_request("rhim_sync_log", method="POST", data=row)
+        recs = _generate_rhim_ai_recommendations(row)
+        return jsonify({"success": True, "sync_id": sync_id, "ai_recommendations": recs})
+    except Exception as e:
+        safe_print(f"RHIM push error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rhim-sync/simulate", methods=["POST"])
+def api_rhim_sync_simulate():
+    """Simulate a RHIM sync event for demo/testing — generates realistic data."""
+    if not _ensure_rhim_table():
+        return jsonify({"error": "rhim_sync_log table not ready — create it via SQL first"}), 503
+
+    try:
+        villages = db_get_villages()
+        if not villages:
+            return jsonify({"error": "No PHC data available"}), 500
+
+        v = random.choice(villages)
+
+        inventory_items = random.randint(8, 25)
+        inventory_units  = random.randint(200, 2000)
+        crit_items       = random.randint(0, 3)
+        dis_reports      = random.randint(1, 8)
+        dis_cases        = random.randint(5, 120)
+        dis_alerts       = random.randint(0, 2)
+        opd_total        = random.randint(30, 250)
+        opd_new          = random.randint(10, opd_total)
+        opd_ref          = random.randint(0, max(1, opd_total // 5))
+        opd_imm          = random.randint(0, 60)
+
+        import hashlib as _hl
+        sync_id = _hl.md5(
+            f"{v['id']}-{datetime.now().isoformat()}".encode()
+        ).hexdigest()
+
+        row = {
+            "sync_id":                  sync_id,
+            "phc_code":                 v["id"],
+            "phc_name":                 v["phc"],
+            "district":                 v["district"],
+            "synced_at":                datetime.now().isoformat(),
+            "sync_source":              "RHIM-SIM",
+            "inventory_items_received": inventory_items,
+            "inventory_total_units":    inventory_units,
+            "inventory_critical_items": crit_items,
+            "disease_reports_received": dis_reports,
+            "disease_cases_total":      dis_cases,
+            "disease_alerts":           dis_alerts,
+            "opd_patients_total":       opd_total,
+            "opd_new_cases":            opd_new,
+            "opd_referred_cases":       opd_ref,
+            "opd_immunizations":        opd_imm,
+            "inventory_payload":        json.dumps({
+                "medicines": [
+                    {"name": "Paracetamol 500mg", "units": random.randint(50, 500), "status": "low" if crit_items > 0 else "ok"},
+                    {"name": "ORS Sachets", "units": random.randint(20, 300), "status": "ok"},
+                    {"name": "Amoxicillin 250mg", "units": random.randint(5, 200), "status": "critical" if crit_items >= 2 else "low" if crit_items == 1 else "ok"},
+                ]
+            }),
+            "disease_payload":          json.dumps({
+                "reports": [
+                    {"disease": random.choice(["Dengue", "Malaria", "Typhoid", "Cholera", "Diarrhea"]),
+                     "cases": dis_cases,
+                     "severity": random.choice(["Low", "Medium", "High"])}
+                ]
+            }),
+            "opd_payload":              json.dumps({
+                "total": opd_total, "new": opd_new, "referred": opd_ref, "immunizations": opd_imm,
+                "top_complaints": random.sample(["Fever", "Cough", "Diarrhea", "Malnutrition", "Skin disease", "Eye infection"], 3)
+            }),
+            "sync_status": "completed",
+        }
+
+        supabase_request("rhim_sync_log", method="POST", data=row)
+        row["ai_recommendations"] = _generate_rhim_ai_recommendations(row)
+        return jsonify({"success": True, "sync_id": sync_id, "sync_data": row})
+    except Exception as e:
+        safe_print(f"RHIM simulate error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rhim-sync/stats")
+def api_rhim_sync_stats():
+    """Return aggregate statistics for the RHIM sync monitor dashboard."""
+    if not _ensure_rhim_table():
+        return jsonify({
+            "table_ready": False,
+            "total_syncs": 0, "synced_phcs": 0, "critical_alerts": 0,
+            "last_sync_at": None, "avg_inventory_items": 0,
+            "avg_opd_patients": 0, "total_disease_cases": 0,
+        })
+    try:
+        rows = supabase_request("rhim_sync_log?order=synced_at.desc&limit=200")
+        if not rows:
+            return jsonify({
+                "table_ready": True,
+                "total_syncs": 0, "synced_phcs": 0, "critical_alerts": 0,
+                "last_sync_at": None, "avg_inventory_items": 0,
+                "avg_opd_patients": 0, "total_disease_cases": 0,
+            })
+
+        total  = len(rows)
+        phcs   = len(set(r["phc_code"] for r in rows))
+        crits  = sum(r.get("inventory_critical_items", 0) + r.get("disease_alerts", 0) for r in rows)
+        last_sync = rows[0]["synced_at"] if rows else None
+        avg_inv = round(sum(r.get("inventory_items_received", 0) for r in rows) / max(total, 1), 1)
+        avg_opd = round(sum(r.get("opd_patients_total", 0) for r in rows) / max(total, 1), 1)
+        dis_cases = sum(r.get("disease_cases_total", 0) for r in rows)
+
+        return jsonify({
+            "table_ready": True,
+            "total_syncs": total,
+            "synced_phcs": phcs,
+            "critical_alerts": crits,
+            "last_sync_at": last_sync,
+            "avg_inventory_items": avg_inv,
+            "avg_opd_patients": avg_opd,
+            "total_disease_cases": dis_cases,
+        })
+    except Exception as e:
+        safe_print(f"RHIM stats error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
+
     import os
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("DEBUG", "True").lower() == "true"
