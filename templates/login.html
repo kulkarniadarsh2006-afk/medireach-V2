@@ -33,11 +33,53 @@
     <!-- GLASS LOGIN CARD -->
     <div class="card login-card">
       
-      <!-- SCREEN 1: MOBILE ENTRY -->
+      <!-- SCREEN 1: MOBILE & ROLE SELECT -->
       <div id="screen-mobile" class="auth-screen">
-        <h3 class="auth-title">Welcome Back</h3>
-        <p class="auth-desc">Enter your registered mobile number to access the coordinator console.</p>
+        <h3 class="auth-title" id="auth-title-text">Welcome to MediReach</h3>
+        <p class="auth-desc" id="auth-desc-text">Select your Health Centre and enter mobile number to access your local PHC console.</p>
         
+        <!-- ROLE SELECTOR -->
+        <div class="form-group" style="text-align:left; margin-bottom:1.25rem;">
+          <label class="form-label" style="font-weight:700">Select Portal Role</label>
+          <select class="form-control" id="login-role" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="handleRoleChange()">
+            <option value="PHC User" selected>PHC Supervisor</option>
+            <option value="District Admin">District Admin</option>
+            <option value="State Admin">State Admin</option>
+            <option value="Transport Coordinator">Transport Coordinator</option>
+          </select>
+        </div>
+
+        <!-- PHC SELECTOR (Visible only when role is PHC User) -->
+        <div class="form-group" id="phc-select-group" style="text-align:left; margin-bottom:1.25rem;">
+          <label class="form-label" style="font-weight:700">Select Public Health Centre</label>
+          <select class="form-control" id="login-phc" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="validatePhoneInput()">
+            <option value="">-- Choose Your PHC --</option>
+            {% for phc in phcs %}
+              <option value="{{ phc.code }}" data-name="{{ phc.name }}">{{ phc.name }} ({{ phc.district }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- DISTRICT SELECTOR (Visible only when role is District Admin) -->
+        <div class="form-group" id="district-select-group" style="display:none; text-align:left; margin-bottom:1.25rem;">
+          <label class="form-label" style="font-weight:700">Select District</label>
+          <select class="form-control" id="login-district" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="validatePhoneInput()">
+            <option value="">-- Choose Your District --</option>
+            <option value="Warangal">Warangal</option>
+            <option value="Nalgonda">Nalgonda</option>
+            <option value="Mahabubnagar">Mahabubnagar</option>
+            <option value="Raichur">Raichur</option>
+            <option value="Kalaburagi">Kalaburagi</option>
+            <option value="Koppal">Koppal</option>
+            <option value="Vijayapura">Vijayapura</option>
+            <option value="Ballari">Ballari</option>
+            <option value="Yadgir">Yadgir</option>
+            <option value="Dharwad">Dharwad</option>
+            <option value="Haveri">Haveri</option>
+          </select>
+        </div>
+
+        <!-- MOBILE PHONE NUMBER -->
         <div class="form-group" style="text-align:left; margin-bottom:1.5rem">
           <label class="form-label" style="font-weight:700">Mobile Number</label>
           <div class="mobile-input-wrap">
@@ -57,7 +99,7 @@
       <div id="screen-otp" class="auth-screen" style="display:none">
         <h3 class="auth-title">Verify Credentials</h3>
         <p class="auth-desc">We've sent a 6-digit verification code to <strong id="display-phone" style="color:var(--text)">+91 99999 99999</strong>.</p>
-        <button class="btn-edit" onclick="goBackToMobile()">✏️ Edit Number</button>
+        <button class="btn-edit" onclick="goBackToMobile()">✏️ Edit Details</button>
 
         <div class="form-group" style="margin-bottom:1.5rem">
           <label class="form-label" style="text-align:left; font-weight:700; margin-bottom:.5rem">6-Digit Code</label>
@@ -73,7 +115,7 @@
         </div>
 
         <button class="run-btn" id="verify-btn" onclick="verifyOtpCode()" style="margin-bottom:1rem">
-          <span>Verify &amp; Enter Dashboard</span>
+          <span>Verify &amp; Enter Portal</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
         </button>
 
@@ -337,12 +379,46 @@
   draw();
 })();
 
-// OTP Phone State
 let phoneNum = '';
 let timerInterval = null;
 
+function handleRoleChange() {
+  const role = document.getElementById('login-role').value;
+  const phcGroup = document.getElementById('phc-select-group');
+  const districtGroup = document.getElementById('district-select-group');
+  const descText = document.getElementById('auth-desc-text');
+  const titleText = document.getElementById('auth-title-text');
+  
+  if (role === 'PHC User') {
+    phcGroup.style.display = 'block';
+    districtGroup.style.display = 'none';
+    titleText.textContent = 'PHC Portal Login';
+    descText.textContent = 'Select your Health Centre and enter mobile number to access your local PHC console.';
+  } else if (role === 'District Admin') {
+    phcGroup.style.display = 'none';
+    districtGroup.style.display = 'block';
+    titleText.textContent = 'District Admin Login';
+    descText.textContent = 'Select your District and enter mobile number to access the district admin dashboard.';
+  } else if (role === 'State Admin') {
+    phcGroup.style.display = 'none';
+    districtGroup.style.display = 'none';
+    titleText.textContent = 'State Admin Login';
+    descText.textContent = 'Enter your mobile number to access the state director control center.';
+  } else if (role === 'Transport Coordinator') {
+    phcGroup.style.display = 'none';
+    districtGroup.style.display = 'none';
+    titleText.textContent = 'Logistics Login';
+    descText.textContent = 'Enter your mobile number to access the logistics and fleet management terminal.';
+  }
+  
+  validatePhoneInput();
+}
+
 function validatePhoneInput() {
   const input = document.getElementById('login-phone');
+  const role = document.getElementById('login-role').value;
+  const phcSelect = document.getElementById('login-phc');
+  const districtSelect = document.getElementById('login-district');
   const btn = document.getElementById('send-otp-btn');
   const err = document.getElementById('phone-error');
   
@@ -350,11 +426,15 @@ function validatePhoneInput() {
   input.value = input.value.replace(/\D/g, '');
   
   err.textContent = '';
-  if (input.value.length === 10) {
-    btn.disabled = false;
-  } else {
-    btn.disabled = true;
+  
+  let valid = input.value.length === 10;
+  if (role === 'PHC User' && !phcSelect.value) {
+    valid = false;
+  } else if (role === 'District Admin' && !districtSelect.value) {
+    valid = false;
   }
+  
+  btn.disabled = !valid;
 }
 
 function sendOtpCode() {
@@ -453,6 +533,9 @@ async function verifyOtpCode() {
   const digits = Array.from(document.querySelectorAll('.otp-digit')).map(input => input.value).join('');
   const err = document.getElementById('otp-error');
   const btn = document.getElementById('verify-btn');
+  const role = document.getElementById('login-role').value;
+  const phcSelect = document.getElementById('login-phc');
+  const districtSelect = document.getElementById('login-district');
   
   err.textContent = '';
   
@@ -465,11 +548,24 @@ async function verifyOtpCode() {
   const originalText = btn.querySelector('span').textContent;
   btn.querySelector('span').textContent = 'Verifying Code...';
   
+  let phcName = '';
+  if (phcSelect && phcSelect.selectedIndex >= 0) {
+    const opt = phcSelect.options[phcSelect.selectedIndex];
+    phcName = opt.getAttribute('data-name') || '';
+  }
+  
   try {
     const res = await fetch('/api/auth/mobile-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobile: phoneNum, otp: digits })
+      body: JSON.stringify({ 
+        mobile: phoneNum, 
+        otp: digits,
+        role: role,
+        phc_code: role === 'PHC User' ? (phcSelect ? phcSelect.value : '') : '',
+        phc_name: role === 'PHC User' ? phcName : '',
+        district: role === 'District Admin' ? (districtSelect ? districtSelect.value : '') : ''
+      })
     });
     const data = await res.json();
     

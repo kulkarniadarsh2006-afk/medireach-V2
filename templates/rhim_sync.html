@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}RHIM PHC Sync Monitor{% endblock %}
-{% block page_title %}📡 RHIM PHC Sync Monitor{% endblock %}
+{% block title %}PHC Portal Sync Monitor{% endblock %}
+{% block page_title %}📡 PHC Portal Sync Monitor{% endblock %}
 {% block breadcrumb %}RHIM PHC Sync{% endblock %}
 
 {% block extra_head %}
@@ -225,7 +225,7 @@
 <div class="rhim-hero">
   <div class="rhim-hero-content">
     <div class="rhim-hero-left">
-      <h2>📡 RHIM PHC Sync Monitor</h2>
+      <h2>📡 PHC Portal Sync Monitor</h2>
       <p>Real-time Rural Health Information Management sync listener &amp; AI intelligence engine</p>
       <div style="display:flex; gap:1rem; margin-top:.8rem; flex-wrap:wrap;">
         <div class="live-pulse"><span class="live-pulse-dot"></span> Polling Supabase</div>
@@ -389,7 +389,7 @@ CREATE POLICY "anon_insert" ON rhim_sync_log FOR INSERT WITH CHECK (true);</pre>
         <h3 class="section-title" style="font-size:.9rem;">RHIM Push API</h3>
       </div>
       <p style="font-size:.75rem; color:var(--text3); margin-bottom:.8rem; line-height:1.6;">
-        Configure your RHIM system to POST sync events:
+        Configure your PHC Portal to POST sync events:
       </p>
       <div style="background:rgba(0,0,0,.4);border-radius:8px;padding:.9rem;font-size:.68rem;font-family:'JetBrains Mono',monospace;color:#A5F3FC;overflow-x:auto;border:1px solid rgba(6,182,212,.15);white-space:pre;">POST /api/rhim-sync/push
 Content-Type: application/json

@@ -44,10 +44,25 @@
     </div>
   </div>
 
-  <!-- Persona Selector -->
+  <!-- Persona Selector / Assigned Role Display -->
+  {% if user %}
+  <div class="persona-selector-static" style="padding: 0.75rem 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">
+    <span style="font-size: 1.1rem;">
+      {% if user.role == 'PHC User' %}🏥
+      {% elif user.role == 'District Admin' %}👨‍⚕️
+      {% elif user.role == 'State Admin' %}🏛️
+      {% elif user.role == 'Transport Coordinator' %}🚚
+      {% else %}👤{% endif %}
+    </span>
+    <div style="display: flex; flex-direction: column;">
+      <span style="font-size: 0.65rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Authenticated Role</span>
+      <span style="font-size: 0.82rem; color: var(--text); font-weight: 600;">{{ user.role }}</span>
+    </div>
+  </div>
+  {% else %}
   <div class="persona-selector">
     <label class="sidebar-label">Active Role</label>
-    {% set current_role = request.args.get('persona', user.role if user else 'PHC Administrator') %}
+    {% set current_role = request.args.get('persona', 'PHC Administrator') %}
     {% set current_icon = '👤' %}
     {% for p in personas %}
       {% if p.role == current_role %}
@@ -65,42 +80,66 @@
       {% endfor %}
     </select>
   </div>
+  {% endif %}
 
   <div class="sidebar-label" style="margin-top:1rem">WORKFLOWS</div>
   <nav class="sidebar-nav">
-    <a href="/dashboard" class="sidebar-item {% if request.path == '/dashboard' %}active{% endif %}">
-      <span class="si-icon">📊</span><span>Mission Control</span>
-    </a>
-    <a href="/demand" class="sidebar-item {% if request.path == '/demand' %}active{% endif %}">
-      <span class="si-icon">📈</span><span>Demand Prediction</span>
-      <span class="si-badge blue">AI</span>
-    </a>
-    <a href="/shortage" class="sidebar-item {% if request.path == '/shortage' %}active{% endif %}">
-      <span class="si-icon">🚨</span><span>Shortage Detection</span>
-      <span class="si-badge red" id="alert-count">—</span>
-    </a>
-    <a href="/transfers" class="sidebar-item {% if request.path == '/transfers' %}active{% endif %}">
-      <span class="si-icon">🔄</span><span>Stock Transfers</span>
-    </a>
-    <a href="/schedule" class="sidebar-item {% if request.path == '/schedule' %}active{% endif %}">
-      <span class="si-icon">🚚</span><span>Delivery Schedule</span>
-    </a>
-    <a href="/emergency" class="sidebar-item {% if request.path == '/emergency' %}active{% endif %}">
-      <span class="si-icon">🏥</span><span>Emergency Planning</span>
-      {% if outbreaks is defined and outbreaks|length > 0 %}<span class="si-badge red pulse-badge">{{ outbreaks|length }}</span>{% endif %}
-    </a>
-    <a href="/inventory-audit" class="sidebar-item {% if request.path == '/inventory-audit' %}active{% endif %}">
-      <span class="si-icon">📦</span><span>Inventory Audit</span>
-    </a>
-    <a href="/analytics" class="sidebar-item {% if request.path == '/analytics' %}active{% endif %}">
-      <span class="si-icon">🔬</span><span>Analytics</span>
-    </a>
-    <a href="/rhim-sync" class="sidebar-item {% if request.path == '/rhim-sync' %}active{% endif %}">
-      <span class="si-icon">📡</span><span>RHIM PHC Sync</span>
-      <span class="si-badge blue">LIVE</span>
-    </a>
+    {% if user and user.role == 'PHC User' %}
+      <a href="/dashboard" class="sidebar-item {% if request.path == '/dashboard' %}active{% endif %}">
+        <span class="si-icon">📊</span><span>PHC Dashboard</span>
+      </a>
+      <a href="/phc-portal/inventory" class="sidebar-item {% if request.path == '/phc-portal/inventory' %}active{% endif %}">
+        <span class="si-icon">💊</span><span>Manage Inventory</span>
+      </a>
+      <a href="/phc-portal/outbreaks" class="sidebar-item {% if request.path == '/phc-portal/outbreaks' %}active{% endif %}">
+        <span class="si-icon">🦠</span><span>Report Outbreaks</span>
+      </a>
+      <a href="/phc-portal/requests" class="sidebar-item {% if request.path == '/phc-portal/requests' %}active{% endif %}">
+        <span class="si-icon">📥</span><span>Replenishment Requests</span>
+      </a>
+    {% elif user and user.role == 'Transport Coordinator' %}
+      <a href="/dashboard" class="sidebar-item {% if request.path == '/dashboard' %}active{% endif %}">
+        <span class="si-icon">📊</span><span>Transport Dashboard</span>
+      </a>
+      <a href="/schedule" class="sidebar-item {% if request.path == '/schedule' %}active{% endif %}">
+        <span class="si-icon">🚚</span><span>Delivery Schedule</span>
+      </a>
+    {% else %}
+      <a href="/dashboard" class="sidebar-item {% if request.path == '/dashboard' %}active{% endif %}">
+        <span class="si-icon">📊</span><span>Mission Control</span>
+      </a>
+      <a href="/demand" class="sidebar-item {% if request.path == '/demand' %}active{% endif %}">
+        <span class="si-icon">📈</span><span>Demand Prediction</span>
+        <span class="si-badge blue">AI</span>
+      </a>
+      <a href="/shortage" class="sidebar-item {% if request.path == '/shortage' %}active{% endif %}">
+        <span class="si-icon">🚨</span><span>Shortage Detection</span>
+        <span class="si-badge red" id="alert-count">—</span>
+      </a>
+      <a href="/transfers" class="sidebar-item {% if request.path == '/transfers' %}active{% endif %}">
+        <span class="si-icon">🔄</span><span>Stock Transfers</span>
+      </a>
+      <a href="/schedule" class="sidebar-item {% if request.path == '/schedule' %}active{% endif %}">
+        <span class="si-icon">🚚</span><span>Delivery Schedule</span>
+      </a>
+      <a href="/emergency" class="sidebar-item {% if request.path == '/emergency' %}active{% endif %}">
+        <span class="si-icon">🏥</span><span>Emergency Planning</span>
+        {% if outbreaks is defined and outbreaks|length > 0 %}<span class="si-badge red pulse-badge">{{ outbreaks|length }}</span>{% endif %}
+      </a>
+      <a href="/inventory-audit" class="sidebar-item {% if request.path == '/inventory-audit' %}active{% endif %}">
+        <span class="si-icon">📦</span><span>Inventory Audit</span>
+      </a>
+      <a href="/analytics" class="sidebar-item {% if request.path == '/analytics' %}active{% endif %}">
+        <span class="si-icon">🔬</span><span>Analytics</span>
+      </a>
+      <a href="/rhim-sync" class="sidebar-item {% if request.path == '/rhim-sync' %}active{% endif %}">
+        <span class="si-icon">📡</span><span>PHC Portal Sync</span>
+        <span class="si-badge blue">LIVE</span>
+      </a>
+    {% endif %}
   </nav>
 
+  {% if not user or user.role not in ['PHC User', 'Transport Coordinator'] %}
   <div class="sidebar-label" style="margin-top:0.5rem">DATA OBJECTS</div>
   <div class="data-objects-mini">
     <button class="do-item" onclick="openDataObjectModal('villages')"><span>🏘️</span> Village Population</button>
@@ -110,6 +149,7 @@
     <button class="do-item" onclick="openDataObjectModal('weather')"><span>🌤️</span> Weather Records</button>
     <button class="do-item" onclick="openDataObjectModal('transport')"><span>🚛</span> Transport Resources</button>
   </div>
+  {% endif %}
 
   <div class="sidebar-footer">
     <div class="live-badge">

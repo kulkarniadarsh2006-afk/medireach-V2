@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}PHC Supervisor Portal{% endblock %} — MediReach AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ─── PHC SIDEBAR ─── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="2"/>
+        <path d="M14 7v14M7 14h14" stroke="url(#lg1)" stroke-width="2.5" stroke-linecap="round"/>
+        <defs><linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs>
+      </svg>
+    </div>
+    <div>
+      <span class="brand-name">MediReach <span class="brand-ai">AI</span></span>
+      <span class="brand-version">PHC Portal</span>
+    </div>
+  </div>
+
+  <!-- PHC Profile Card -->
+  <div class="persona-selector" style="padding: 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem;">
+    <div style="font-size: .65rem; color: var(--text3); font-weight: 700; text-transform: uppercase; margin-bottom: .25rem;">Active Facility</div>
+    <div style="font-weight: 800; font-size: .88rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🏢 {{ user.phc_name }}</div>
+    <div style="font-size: .68rem; color: var(--cyan); font-family: 'JetBrains Mono', monospace; margin-top: .15rem;">{{ user.phc_code }}</div>
+  </div>
+
+  <div class="sidebar-label">WORKFLOWS</div>
+  <nav class="sidebar-nav">
+    <a href="/phc-portal/dashboard" class="sidebar-item {% if request.path == '/phc-portal/dashboard' %}active{% endif %}">
+      <span class="si-icon">📊</span><span>PHC Dashboard</span>
+    </a>
+    <a href="/phc-portal/inventory" class="sidebar-item {% if request.path == '/phc-portal/inventory' %}active{% endif %}">
+      <span class="si-icon">💊</span><span>Manage Inventory</span>
+    </a>
+    <a href="/phc-portal/outbreaks" class="sidebar-item {% if request.path == '/phc-portal/outbreaks' %}active{% endif %}">
+      <span class="si-icon">🦠</span><span>Log Outbreak</span>
+    </a>
+    <a href="/phc-portal/requests" class="sidebar-item {% if request.path == '/phc-portal/requests' %}active{% endif %}">
+      <span class="si-icon">📥</span><span>Replenish Requests</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="live-badge" style="font-family: 'JetBrains Mono', monospace; font-size: .625rem; font-weight: 700; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); padding: .25rem .5rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .35rem;">
+      <span class="live-dot"></span> SECURE SUPABASE
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+      <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+      <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</aside>
+
+<!-- ─── MAIN WRAPPER ─── -->
+<div class="main-with-sidebar">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-heading">{% block page_title %}Dashboard{% endblock %}</h1>
+      <div class="breadcrumb">
+        <span>PHC Supervisor Portal</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <span>{% block breadcrumb %}Dashboard{% endblock %}</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-indicator">
+        <span class="live-dot"></span> LIVE
+      </div>
+      <div class="topbar-time" id="topbar-time"></div>
+      
+      <!-- User Profile Profile Dropdown -->
+      <div class="user-profile-menu" style="display:flex;align-items:center;gap:.5rem;position:relative">
+        <div class="topbar-avatar" title="{{ user.name }} ({{ user.email }})" style="border:1px solid var(--border); background: var(--primary); color: var(--text); font-weight:700;">
+          {{ user.phc_name[4] | upper if user.phc_name|length > 4 else 'S' }}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start">
+          <span style="font-size:.78rem;font-weight:700;color:var(--text)">Supervisor</span>
+          <a href="#" onclick="logoutUser(event)" style="font-size:.65rem;color:var(--red);text-decoration:none;font-weight:700">Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content has-topbar">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages" style="margin-bottom: 1.5rem;">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'danger' else 'critical' }}" style="padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+              <span>{{ message }}</span>
+              <button onclick="this.parentElement.remove()" style="background: transparent; border: none; color: inherit; cursor: pointer; font-weight: 700; font-size: 1.1rem; line-height: 1;">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+// Topbar time clock
+function updateClock() {
+  const el = document.getElementById('topbar-time');
+  if (el) {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Theme toggler
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+// Logout Handler
+async function logoutUser(e) {
+  e.preventDefault();
+  if (confirm("Are you sure you want to sign out from the PHC Portal?")) {
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (res.ok) {
+        window.location.href = '/';
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  }
+}
+
+// Show feedback toasts
+function showToast(message, icon = "📢") {
+  const toast = document.createElement('div');
+  toast.style.position = 'fixed';
+  toast.style.bottom = '2rem';
+  toast.style.right = '2rem';
+  toast.style.background = 'var(--card)';
+  toast.style.border = '1px solid var(--border)';
+  toast.style.color = 'var(--text)';
+  toast.style.padding = '1rem 1.5rem';
+  toast.style.borderRadius = '12px';
+  toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+  toast.style.zIndex = '9999';
+  toast.style.display = 'flex';
+  toast.style.alignItems = 'center';
+  toast.style.gap = '.75rem';
+  toast.style.fontFamily = 'Inter, sans-serif';
+  toast.style.fontSize = '.82rem';
+  toast.style.fontWeight = '600';
+  toast.style.backdropFilter = 'blur(10px)';
+  toast.style.animation = 'slideUp 0.3s forwards';
+  
+  toast.innerHTML = `<span style="font-size: 1.1rem">${icon}</span><span>${message}</span>`;
+  document.body.appendChild(toast);
+  
+  if (!document.getElementById('toastStyle')) {
+    const s = document.createElement('style');
+    s.id = 'toastStyle';
+    s.innerHTML = `
+      @keyframes slideUp {
+        from { transform: translateY(100px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+  
+  setTimeout(() => {
+    toast.style.transition = 'all 0.3s';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -16,6 +16,7 @@ import os
 import urllib.request
 import json
 import ssl
+import sqlite3
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -46,13 +47,32 @@ def safe_print(text):
         pass
 
 # ─────────────────────────────────────────────
-# DATABASE ACCESS HELPERS (NATIVE HTTP REST CLIENT)
+# DATABASE ACCESS HELPERS (NATIVE HTTP REST CLIENT & SQLITE FALLBACK)
 # ─────────────────────────────────────────────
 
 # Shared SSL context — created once at startup, reused for all requests
 _SSL_CTX = ssl.create_default_context()
 _SSL_CTX.check_hostname = False
 _SSL_CTX.verify_mode = ssl.CERT_NONE
+
+DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "medireach_local.db")
+
+def query_sqlite(query, params=(), commit=False):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        cursor.execute(query, params)
+        if commit:
+            conn.commit()
+            return cursor.lastrowid
+        else:
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        safe_print(f"SQLite Query Error: {e}")
+        return []
+    finally:
+        conn.close()
 
 def supabase_request(endpoint, method="GET", data=None):
     url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
@@ -70,6 +90,180 @@ def supabase_request(endpoint, method="GET", data=None):
     except Exception as e:
         safe_print(f"Supabase HTTP Request Error on {endpoint}: {e}")
         raise e
+
+# Verify database connection on startup
+SUPABASE_CONNECTED = False
+try:
+    supabase_request("phcs?select=PHC_Code&limit=1")
+    safe_print("Successfully connected to Supabase PostgreSQL Database via HTTP REST Client!")
+    SUPABASE_CONNECTED = True
+except Exception as e:
+    safe_print(f"Warning: Supabase connection failed: {e}. Operating in Local-First SQLite mode.")
+
+# ─────────────────────────────────────────────
+# DATABASE WRITE & CRUD HELPERS (WITH SQLITE FALLBACKS)
+# ─────────────────────────────────────────────
+
+def db_insert_user(user_data):
+    try:
+        query_sqlite(
+            "INSERT OR REPLACE INTO users (username, email, mobile, role, phc_code, phc_name, district) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_data.get("given_name"), user_data.get("email"), user_data.get("mobile"), user_data.get("role"), user_data.get("phc_code"), user_data.get("phc_name"), user_data.get("district")),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite user insert error: {e}")
+        
+    try:
+        supabase_request("users", method="POST", data={
+            "username": user_data.get("given_name"),
+            "email": user_data.get("email"),
+            "mobile": user_data.get("mobile"),
+            "role": user_data.get("role"),
+            "phc_code": user_data.get("phc_code"),
+            "phc_name": user_data.get("phc_name"),
+            "district": user_data.get("district")
+        })
+    except Exception as e:
+        safe_print(f"Supabase user insert failed (ignored): {e}")
+
+def db_update_inventory(phc_code, medicine_id, stock, batch_number=""):
+    try:
+        query_sqlite(
+            "INSERT OR REPLACE INTO inventory (phc_code, medicine_id, stock, batch_number) VALUES (?, ?, ?, ?)",
+            (phc_code, medicine_id, stock, batch_number),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite inventory update error: {e}")
+        
+    try:
+        supabase_request("inventory", method="POST", data={
+            "phc_code": phc_code,
+            "medicine_id": medicine_id,
+            "stock": stock,
+            "batch_number": batch_number
+        })
+    except Exception as e:
+        safe_print(f"Supabase inventory update failed (ignored): {e}")
+
+def db_insert_outbreak(outbreak_data):
+    try:
+        query_sqlite(
+            "INSERT INTO disease_outbreaks (phc_code, disease, affected, severity, spread_rate, started, disease_category, cases_reported) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (outbreak_data["phc_code"], outbreak_data["disease"], outbreak_data["affected"], outbreak_data["severity"], outbreak_data["spread_rate"], outbreak_data["started"], outbreak_data.get("disease_category"), outbreak_data.get("cases_reported")),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite outbreak insert error: {e}")
+        
+    try:
+        supabase_request("disease_outbreaks", method="POST", data={
+            "phc_code": outbreak_data["phc_code"],
+            "disease": outbreak_data["disease"],
+            "affected": outbreak_data["affected"],
+            "severity": outbreak_data["severity"],
+            "spread_rate": outbreak_data["spread_rate"],
+            "started": outbreak_data["started"],
+            "disease_category": outbreak_data.get("disease_category"),
+            "cases_reported": outbreak_data.get("cases_reported")
+        })
+    except Exception as e:
+        safe_print(f"Supabase outbreak insert failed (ignored): {e}")
+
+def db_insert_request(request_data):
+    try:
+        query_sqlite(
+            "INSERT INTO medicine_requests (phc_code, medicine_id, quantity, status, priority) VALUES (?, ?, ?, ?, ?)",
+            (request_data["phc_code"], request_data["medicine_id"], request_data["quantity"], request_data.get("status", "Pending"), request_data.get("priority", "Medium")),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite request insert error: {e}")
+        
+    try:
+        supabase_request("medicine_requests", method="POST", data={
+            "phc_code": request_data["phc_code"],
+            "medicine_id": request_data["medicine_id"],
+            "quantity": request_data["quantity"],
+            "status": request_data.get("status", "Pending"),
+            "priority": request_data.get("priority", "Medium")
+        })
+    except Exception as e:
+        safe_print(f"Supabase request insert failed (ignored): {e}")
+
+def db_insert_patient_statistics(stat_data):
+    try:
+        query_sqlite(
+            "INSERT INTO patient_statistics (phc_code, opd_patients_total, opd_new_cases, opd_referred_cases, opd_immunizations, recorded_date) VALUES (?, ?, ?, ?, ?, ?)",
+            (stat_data["phc_code"], stat_data["opd_patients_total"], stat_data["opd_new_cases"], stat_data["opd_referred_cases"], stat_data["opd_immunizations"], stat_data["recorded_date"]),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite stats insert error: {e}")
+        
+    try:
+        supabase_request("patient_statistics", method="POST", data={
+            "phc_code": stat_data["phc_code"],
+            "opd_patients_total": stat_data["opd_patients_total"],
+            "opd_new_cases": stat_data["opd_new_cases"],
+            "opd_referred_cases": stat_data["opd_referred_cases"],
+            "opd_immunizations": stat_data["opd_immunizations"],
+            "recorded_date": stat_data["recorded_date"]
+        })
+    except Exception as e:
+        safe_print(f"Supabase stats insert failed (ignored): {e}")
+
+def db_insert_sync_log(sync_row):
+    try:
+        query_sqlite(
+            "INSERT OR REPLACE INTO rhim_sync_log (sync_id, phc_code, phc_name, district, synced_at, sync_source, inventory_items_received, inventory_total_units, inventory_critical_items, disease_reports_received, disease_cases_total, disease_alerts, opd_patients_total, opd_new_cases, opd_referred_cases, opd_immunizations, inventory_payload, disease_payload, opd_payload, sync_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (sync_row["sync_id"], sync_row["phc_code"], sync_row["phc_name"], sync_row.get("district", ""), sync_row["synced_at"], sync_row.get("sync_source", "PHC-Portal"), sync_row.get("inventory_items_received", 0), sync_row.get("inventory_total_units", 0), sync_row.get("inventory_critical_items", 0), sync_row.get("disease_reports_received", 0), sync_row.get("disease_cases_total", 0), sync_row.get("disease_alerts", 0), sync_row.get("opd_patients_total", 0), sync_row.get("opd_new_cases", 0), sync_row.get("opd_referred_cases", 0), sync_row.get("opd_immunizations", 0), sync_row.get("inventory_payload"), sync_row.get("disease_payload"), sync_row.get("opd_payload"), sync_row.get("sync_status", "completed")),
+            commit=True
+        )
+    except Exception as e:
+        safe_print(f"SQLite sync log insert error: {e}")
+        
+    try:
+        supabase_request("rhim_sync_log", method="POST", data=sync_row)
+    except Exception as e:
+        safe_print(f"Supabase sync log insert failed (ignored): {e}")
+
+# ─────────────────────────────────────────────
+# DATABASE READ & SYNC LOG HELPERS
+# ─────────────────────────────────────────────
+
+def db_get_sync_logs(phc_code=None, limit=10):
+    if phc_code:
+        query = "SELECT * FROM rhim_sync_log WHERE phc_code = ? ORDER BY synced_at DESC LIMIT ?"
+        params = (phc_code, limit)
+    else:
+        query = "SELECT * FROM rhim_sync_log ORDER BY synced_at DESC LIMIT ?"
+        params = (limit,)
+    rows = query_sqlite(query, params)
+    for r in rows:
+        r["ai_recommendations"] = _generate_rhim_ai_recommendations(r)
+    return rows
+
+def db_get_latest_sync_logs():
+    query = "SELECT * FROM rhim_sync_log ORDER BY synced_at DESC"
+    rows = query_sqlite(query)
+    for r in rows:
+        r["ai_recommendations"] = _generate_rhim_ai_recommendations(r)
+    return rows
+
+def db_get_patient_statistics(phc_code=None):
+    if phc_code:
+        query = "SELECT * FROM patient_statistics WHERE phc_code = ? ORDER BY recorded_date DESC"
+        params = (phc_code,)
+    else:
+        query = "SELECT * FROM patient_statistics ORDER BY recorded_date DESC"
+        params = ()
+    return query_sqlite(query, params)
+
+def db_get_deliveries():
+    query = "SELECT * FROM deliveries ORDER BY updated_at DESC"
+    return query_sqlite(query)
 
 # ─────────────────────────────────────────────
 # IN-MEMORY TTL CACHE  (60s for reads, avoids hammering Supabase)
@@ -208,82 +402,86 @@ def db_get_villages():
     try:
         rows = cached_supabase_get("phcs?select=*", "villages")
         if not rows:
-            return []
-        villages = []
-        for idx, r in enumerate(rows):
-            code = r.get("PHC_Code") or r.get("code") or f"PHC-{idx:03d}"
-            name = r.get("PHC_Name") or r.get("name") or f"PHC {idx}"
-            pop = r.get("Population_Covered") or r.get("population") or 15000
-            dist = r.get("District") or r.get("district") or "Unknown"
-
-            h = hash(code)
-            lat = 14.5 + abs(h % 300) / 100.0
-            lng = 74.8 + abs((h // 3) % 400) / 100.0
-
-            villages.append({
-                "id": code,
-                "name": name.replace("PHC ", "").replace("PHC", "").strip(),
-                "population": int(pop),
-                "district": dist,
-                "lat": round(lat, 4),
-                "lng": round(lng, 4),
-                "phc": name if name.startswith("PHC") else f"PHC {name}",
-                "growth_rate": 1.8,
-                "age_distribution": {"0-14": 30, "15-60": 57, "60+": 13}
-            })
-        return villages
+            raise Exception("No data from Supabase")
     except Exception as e:
-        safe_print(f"Error fetching villages: {e}")
-        return []
+        safe_print(f"Supabase fetch phcs failed, falling back to local SQLite: {e}")
+        rows = query_sqlite("SELECT PHC_Code as code, PHC_Name as name, Population_Covered as population, District as district FROM phcs")
+        
+    villages = []
+    for idx, r in enumerate(rows):
+        code = r.get("code") or r.get("PHC_Code") or f"PHC-{idx:03d}"
+        name = r.get("name") or r.get("PHC_Name") or f"PHC {idx}"
+        pop = r.get("population") or r.get("Population_Covered") or 15000
+        dist = r.get("district") or r.get("District") or "Unknown"
+
+        h = hash(code)
+        lat = 14.5 + abs(h % 300) / 100.0
+        lng = 74.8 + abs((h // 3) % 400) / 100.0
+
+        villages.append({
+            "id": code,
+            "name": name.replace("PHC ", "").replace("PHC", "").strip(),
+            "population": int(pop),
+            "district": dist,
+            "lat": round(lat, 4),
+            "lng": round(lng, 4),
+            "phc": name if name.startswith("PHC") else f"PHC {name}",
+            "growth_rate": 1.8,
+            "age_distribution": {"0-14": 30, "15-60": 57, "60+": 13}
+        })
+    return villages
 
 def db_get_medicines():
     try:
         rows = cached_supabase_get("medicines?select=*", "medicines")
         if not rows:
-            return []
+            raise Exception("No data from Supabase")
         return rows
     except Exception as e:
-        safe_print(f"Error fetching medicines: {e}")
-        return []
+        safe_print(f"Supabase fetch medicines failed, falling back to SQLite: {e}")
+        rows = query_sqlite("SELECT id, name, category, unit, critical FROM medicines")
+        return [{"id": r["id"], "name": r["name"], "category": r["category"], "unit": r["unit"], "critical": bool(r["critical"])} for r in rows]
 
 def db_get_inventory():
     try:
         rows = cached_supabase_get("inventory?select=*", "inventory")
         if not rows:
-            return {}
-        inv_data = {}
-        for r in rows:
-            phc = r.get("phc_code")
-            med = r.get("medicine_id")
-            stock = r.get("stock", 0)
-            if phc not in inv_data:
-                inv_data[phc] = {}
-            inv_data[phc][med] = stock
-        return inv_data
+            raise Exception("No data from Supabase")
     except Exception as e:
-        safe_print(f"Error fetching inventory: {e}")
-        return {}
+        safe_print(f"Supabase fetch inventory failed, falling back to SQLite: {e}")
+        rows = query_sqlite("SELECT phc_code, medicine_id, stock FROM inventory")
+        
+    inv_data = {}
+    for r in rows:
+        phc = r.get("phc_code")
+        med = r.get("medicine_id")
+        stock = r.get("stock", 0)
+        if phc not in inv_data:
+            inv_data[phc] = {}
+        inv_data[phc][med] = stock
+    return inv_data
 
 def db_get_outbreaks():
     try:
         rows = cached_supabase_get("disease_outbreaks?select=*", "outbreaks")
         if not rows:
-            return []
-        outbreaks = []
-        for r in rows:
-            outbreaks.append({
-                "id": f"DO{r.get('id', 0):03d}",
-                "village_id": r.get("phc_code"),
-                "disease": r.get("disease"),
-                "affected": r.get("affected", 0),
-                "severity": r.get("severity", "Medium"),
-                "spread_rate": r.get("spread_rate", 1.0),
-                "started": str(r.get("started", "2026-06-01"))
-            })
-        return outbreaks
+            raise Exception("No data from Supabase")
     except Exception as e:
-        safe_print(f"Error fetching outbreaks: {e}")
-        return []
+        safe_print(f"Supabase fetch outbreaks failed, falling back to SQLite: {e}")
+        rows = query_sqlite("SELECT id, phc_code, disease, affected, severity, spread_rate, started FROM disease_outbreaks")
+        
+    outbreaks = []
+    for r in rows:
+        outbreaks.append({
+            "id": f"DO{r.get('id', 0):03d}" if isinstance(r.get('id'), int) else r.get('id'),
+            "village_id": r.get("phc_code"),
+            "disease": r.get("disease"),
+            "affected": r.get("affected", 0),
+            "severity": r.get("severity", "Medium"),
+            "spread_rate": r.get("spread_rate", 1.0),
+            "started": str(r.get("started", "2026-06-01"))
+        })
+    return outbreaks
 
 def db_get_shortage_alerts():
     """Compute shortage alerts from cached DB data. Results cached for 60s."""
@@ -338,42 +536,43 @@ def db_get_shipments():
     try:
         rows = cached_supabase_get("logistics_shipments?select=*", "shipments")
         if not rows:
-            return []
-        schedule = []
-        villages = {v["id"]: v for v in db_get_villages()}   # served from cache
-        medicines = {m["id"]: m for m in db_get_medicines()}  # served from cache
-        for r in rows:
-            dest_code = r.get("destination_phc_code")
-            med_id = r.get("medicine_id")
-            v_name = villages.get(dest_code, {}).get("name", dest_code)
-            m_name = medicines.get(med_id, {}).get("name", med_id)
-            
-            dt_str = r.get("delivery_time", "")
-            if dt_str:
-                try:
-                    dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                    dt_str = dt.strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    pass
-            schedule.append({
-                "schedule_id": r.get("id"),
-                "vehicle": r.get("vehicle_type"),
-                "vehicle_id": r.get("vehicle_id"),
-                "route": r.get("route"),
-                "source": "Central Warehouse",
-                "destination": v_name,
-                "medicines": m_name,
-                "quantity": r.get("quantity", 0),
-                "delivery_time": dt_str,
-                "priority": r.get("priority", "Medium"),
-                "road_condition": r.get("road_condition", "Good"),
-                "estimated_hours": r.get("estimated_hours", 4),
-                "status": r.get("status", "Scheduled")
-            })
-        return schedule
+            raise Exception("No data from Supabase")
     except Exception as e:
-        safe_print(f"Error fetching shipments: {e}")
-        return []
+        safe_print(f"Supabase fetch shipments failed, falling back to SQLite: {e}")
+        rows = query_sqlite("SELECT id, vehicle_type, vehicle_id, route, source_warehouse_id, destination_phc_code, medicine_id, quantity, delivery_time, priority, road_condition, estimated_hours, status FROM logistics_shipments")
+        
+    schedule = []
+    villages = {v["id"]: v for v in db_get_villages()}
+    medicines = {m["id"]: m for m in db_get_medicines()}
+    for r in rows:
+        dest_code = r.get("destination_phc_code")
+        med_id = r.get("medicine_id")
+        v_name = villages.get(dest_code, {}).get("name", dest_code)
+        m_name = medicines.get(med_id, {}).get("name", med_id)
+        
+        dt_str = r.get("delivery_time", "")
+        if dt_str:
+            try:
+                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                dt_str = dt.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                pass
+        schedule.append({
+            "schedule_id": r.get("id") or r.get("schedule_id"),
+            "vehicle": r.get("vehicle_type") or r.get("vehicle"),
+            "vehicle_id": r.get("vehicle_id"),
+            "route": r.get("route"),
+            "source": "Central Warehouse",
+            "destination": v_name,
+            "medicines": m_name,
+            "quantity": r.get("quantity", 0),
+            "delivery_time": dt_str,
+            "priority": r.get("priority", "Medium"),
+            "road_condition": r.get("road_condition", "Good"),
+            "estimated_hours": r.get("estimated_hours", 4),
+            "status": r.get("status", "Scheduled")
+        })
+    return schedule
 
 # ─────────────────────────────────────────────
 # AI ENGINE — PREDICTION LOGIC
@@ -590,9 +789,144 @@ def index():
     }
     return render_template("index.html", stats=stats, personas=PERSONAS)
 
-@app.route("/dashboard")
-def dashboard():
-    persona = request.args.get("persona", "PHC Administrator")
+def render_phc_user_dashboard():
+    phc_code = session["user"].get("phc_code")
+    phc_name = session["user"].get("phc_name")
+    all_meds = db_get_medicines()
+    med_map = {m["id"]: m for m in all_meds}
+    
+    # Inventory rows
+    inventory_rows = []
+    try:
+        inventory_rows = supabase_request(f"inventory?phc_code=eq.{phc_code}")
+        if not inventory_rows:
+            inventory_rows = query_sqlite("SELECT * FROM inventory WHERE phc_code = ?", (phc_code,))
+    except Exception as e:
+        safe_print(f"Error fetching inventory: {e}")
+        inventory_rows = query_sqlite("SELECT * FROM inventory WHERE phc_code = ?", (phc_code,))
+        
+    local_inventory = []
+    total_stock_units = 0
+    low_stock_alerts_count = 0
+    critical_alerts_count = 0
+    
+    for r in inventory_rows:
+        med_id = r.get("medicine_id")
+        stock = r.get("stock", 0)
+        med_info = med_map.get(med_id, {"name": med_id, "category": "Unknown", "unit": "Units", "critical": False})
+        
+        daily_cons = get_daily_consumption(phc_code, med_id, db_get_villages())
+        risk, days_rem = calculate_risk_level(stock, daily_cons)
+        
+        total_stock_units += stock
+        if risk == "Critical":
+            critical_alerts_count += 1
+        elif risk == "High":
+            low_stock_alerts_count += 1
+            
+        local_inventory.append({
+            "medicine_id": med_id,
+            "name": med_info["name"],
+            "category": med_info["category"],
+            "unit": med_info["unit"],
+            "stock": stock,
+            "daily_consumption": daily_cons,
+            "days_remaining": round(days_rem, 1) if days_rem < 999 else "Stable",
+            "risk_level": risk
+        })
+    local_inventory.sort(key=lambda x: x["name"])
+    
+    # Outbreak rows
+    outbreak_rows = []
+    try:
+        outbreak_rows = supabase_request(f"disease_outbreaks?phc_code=eq.{phc_code}")
+        if not outbreak_rows:
+            outbreak_rows = query_sqlite("SELECT * FROM disease_outbreaks WHERE phc_code = ?", (phc_code,))
+    except Exception as e:
+        outbreak_rows = query_sqlite("SELECT * FROM disease_outbreaks WHERE phc_code = ?", (phc_code,))
+        
+    # Requests rows
+    request_rows = []
+    try:
+        request_rows = supabase_request(f"medicine_requests?phc_code=eq.{phc_code}&order=created_at.desc&limit=10")
+        if not request_rows:
+            request_rows = query_sqlite("SELECT * FROM medicine_requests WHERE phc_code = ? ORDER BY created_at DESC LIMIT 10", (phc_code,))
+    except Exception as e:
+        request_rows = query_sqlite("SELECT * FROM medicine_requests WHERE phc_code = ? ORDER BY created_at DESC LIMIT 10", (phc_code,))
+        
+    formatted_requests = []
+    for req in request_rows:
+        med_id = req.get("medicine_id")
+        med_name = med_map.get(med_id, {}).get("name", med_id)
+        formatted_requests.append({
+            "id": req.get("id"),
+            "medicine_name": med_name,
+            "quantity": req.get("quantity"),
+            "priority": req.get("priority", "Medium"),
+            "status": req.get("status", "Pending"),
+            "created_at": req.get("created_at")
+        })
+        
+    # Sync log history
+    sync_logs = db_get_sync_logs(phc_code=phc_code, limit=10)
+    
+    # Patient statistics history
+    patient_stats = db_get_patient_statistics(phc_code=phc_code)
+    
+    return render_template(
+        "phc_user_dashboard.html",
+        local_inventory=local_inventory,
+        local_outbreaks=outbreak_rows,
+        local_requests=formatted_requests,
+        total_stock_units=total_stock_units,
+        critical_alerts_count=critical_alerts_count,
+        low_stock_alerts_count=low_stock_alerts_count,
+        user=session["user"],
+        all_medicines=all_meds,
+        sync_logs=sync_logs,
+        patient_stats=patient_stats[:10]
+    )
+
+def render_district_admin_dashboard():
+    district = session["user"].get("district", "Warangal")
+    all_villages = db_get_villages()
+    district_phcs = [v for v in all_villages if v["district"].lower() == district.lower()]
+    phc_codes = [p["id"] for p in district_phcs]
+    
+    # Filter stock shortages
+    all_alerts = db_get_shortage_alerts()
+    district_alerts = [a for a in all_alerts if a["district"].lower() == district.lower()]
+    
+    # Outbreaks in the district
+    all_outbreaks = db_get_outbreaks()
+    district_outbreaks = [o for o in all_outbreaks if o["village_id"] in phc_codes]
+    
+    # Stock transfers within district
+    all_transfers = []
+    try:
+        transfers_res = api_stock_transfers()
+        all_transfers = transfers_res.get_json().get("transfers", [])
+    except Exception as e:
+        safe_print(f"Error calling api_stock_transfers: {e}")
+        all_transfers = []
+    district_transfers = [t for t in all_transfers if t["source_id"] in phc_codes or t["destination_id"] in phc_codes]
+    
+    # Sync logs in district
+    all_sync_logs = db_get_latest_sync_logs()
+    district_sync_logs = [log for log in all_sync_logs if log.get("district") == district or log.get("phc_code") in phc_codes]
+    
+    return render_template(
+        "district_admin_dashboard.html",
+        district=district,
+        phcs=district_phcs,
+        alerts=district_alerts,
+        outbreaks=district_outbreaks,
+        transfers=district_transfers,
+        sync_logs=district_sync_logs[:10],
+        user=session["user"]
+    )
+
+def render_state_admin_dashboard():
     villages = db_get_villages()
     medicines = db_get_medicines()
     inventory = db_get_inventory()
@@ -600,27 +934,99 @@ def dashboard():
     alerts = db_get_shortage_alerts()
     
     total_alerts = len([a for a in alerts if a["risk_level"] in ["Critical", "High"]])
+    active_outbreaks = len(outbreaks)
     
+    all_transfers = []
+    try:
+        transfers_res = api_stock_transfers()
+        all_transfers = transfers_res.get_json().get("transfers", [])
+    except Exception as e:
+        safe_print(f"Error calling api_stock_transfers: {e}")
+        all_transfers = []
+        
+    # Calculate average availability
     availability = []
     for v in villages:
         inv = inventory.get(v["id"], {})
         total_stock = sum(inv.values())
         max_stock = sum(get_daily_consumption(v["id"], m["id"], villages) * 30 for m in medicines)
         pct = min(100, round((total_stock / max(max_stock, 1)) * 100))
-        availability.append({"village": v["name"], "pct": pct})
+        availability.append(pct)
+    avg_availability = round(sum(availability) / len(availability)) if availability else 0
     
-    avg_availability = round(sum(a["pct"] for a in availability) / len(availability)) if availability else 0
-    active_outbreaks = len(outbreaks)
+    # AI forecasts
+    predictions = []
+    try:
+        pred_res = api_demand_prediction()
+        predictions = pred_res.get_json().get("predictions", [])
+    except Exception as e:
+        safe_print(f"Error calling api_demand_prediction: {e}")
+        
+    # Emergency plans
+    emergency_plans = []
+    try:
+        emerg_res = api_emergency()
+        emergency_plans = emerg_res.get_json().get("plans", [])
+    except Exception as e:
+        safe_print(f"Error calling api_emergency: {e}")
+        
+    # Sync logs
+    sync_logs = db_get_latest_sync_logs()
     
-    return render_template("dashboard.html",
-                           persona=persona, personas=PERSONAS,
-                           villages=villages, medicines=medicines,
-                           total_alerts=total_alerts,
-                           avg_availability=avg_availability,
-                           active_outbreaks=active_outbreaks,
-                           outbreaks=outbreaks,
-                           weather=WEATHER_DATA,
-                           inventory=inventory)
+    return render_template(
+        "state_admin_dashboard.html",
+        villages=villages,
+        medicines=medicines,
+        total_alerts=total_alerts,
+        avg_availability=avg_availability,
+        active_outbreaks=active_outbreaks,
+        outbreaks=outbreaks,
+        transfers=all_transfers,
+        predictions=predictions[:15],
+        emergency_plans=emergency_plans,
+        sync_logs=sync_logs[:10],
+        user=session["user"]
+    )
+
+def render_transport_dashboard():
+    shipments = db_get_shipments()
+    vehicles = get_transportation_vehicles()
+    
+    en_route = [s for s in shipments if s["status"] == "En Route"]
+    scheduled = [s for s in shipments if s["status"] == "Scheduled"]
+    completed = [s for s in shipments if s["status"] == "Delivered"]
+    
+    # Active deliveries
+    deliveries = db_get_deliveries()
+    
+    return render_template(
+        "transport_dashboard.html",
+        shipments=shipments,
+        vehicles=vehicles,
+        en_route_count=len(en_route),
+        scheduled_count=len(scheduled),
+        completed_count=len(completed),
+        deliveries=deliveries,
+        user=session["user"]
+    )
+
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect(url_for("login_page"))
+        
+    role = session["user"].get("role")
+    
+    if role == "PHC User":
+        return render_phc_user_dashboard()
+    elif role == "District Admin":
+        return render_district_admin_dashboard()
+    elif role == "State Admin":
+        return render_state_admin_dashboard()
+    elif role == "Transport Coordinator":
+        return render_transport_dashboard()
+    else:
+        return render_state_admin_dashboard()
 
 @app.route("/demand")
 def demand_page():
@@ -687,18 +1093,50 @@ def inject_user():
 def enforce_login():
     allowed_endpoints = ["index", "login_page", "api_auth_mobile_login", "static", "robots_txt", "sitemap_xml"]
     if request.endpoint and request.endpoint not in allowed_endpoints:
-        if request.path.startswith("/api/"):
-            if "user" not in session:
+        if "user" not in session:
+            if request.path.startswith("/api/"):
                 return jsonify({"error": "Unauthorized"}), 401
-        else:
-            if "user" not in session:
-                return redirect(url_for("login_page"))
+            return redirect(url_for("login_page"))
+            
+        role = session["user"].get("role")
+        if role == "PHC User":
+            allowed = ["dashboard", "phc_dashboard", "phc_inventory", "phc_outbreaks", "phc_requests", "phc_patient_statistics", "phc_sync", "api_auth_logout", "api_auth_switch_role"]
+            if request.endpoint not in allowed and not request.path.startswith("/static/"):
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Forbidden for PHC User role"}), 403
+                return redirect(url_for("dashboard"))
+        elif role == "Transport Coordinator":
+            allowed = ["dashboard", "schedule_page", "api_delivery_schedule", "api_auth_logout", "api_auth_switch_role"]
+            if request.endpoint not in allowed and not request.path.startswith("/static/"):
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Forbidden for Transport Coordinator role"}), 403
+                return redirect(url_for("dashboard"))
+        elif role in ["District Admin", "State Admin"]:
+            phc_endpoints = ["phc_dashboard", "phc_inventory", "phc_outbreaks", "phc_requests", "phc_patient_statistics", "phc_sync"]
+            if request.endpoint in phc_endpoints:
+                return redirect(url_for("dashboard"))
 
 @app.route("/login")
 def login_page():
     if "user" in session:
         return redirect(url_for("dashboard"))
-    return render_template("login.html")
+        
+    # Fetch all PHCs to populate dropdown in login form
+    phcs = []
+    try:
+        phc_rows = query_sqlite("SELECT PHC_Code as code, PHC_Name as name, District as district FROM phcs ORDER BY PHC_Name")
+        if not phc_rows:
+            phc_rows = db_get_villages()
+        for r in phc_rows:
+            phcs.append({
+                "code": r.get("code") or r.get("PHC_Code"),
+                "name": r.get("name") or r.get("PHC_Name"),
+                "district": r.get("district") or r.get("District", "")
+            })
+    except Exception as e:
+        safe_print(f"Error loading PHCs for login dropdown: {e}")
+        
+    return render_template("login.html", phcs=phcs)
 
 @app.route("/api/auth/switch-role", methods=["POST"])
 def api_auth_switch_role():
@@ -714,19 +1152,65 @@ def api_auth_mobile_login():
     data = request.get_json() or {}
     mobile = data.get("mobile", "").strip()
     otp = data.get("otp", "").strip()
+    role = data.get("role", "PHC User").strip()  # 'PHC User', 'District Admin', 'State Admin', 'Transport Coordinator'
     
     if not mobile or len(mobile) < 10:
         return jsonify({"success": False, "error": "Invalid mobile number. Must be 10 digits."}), 400
         
     # Hackathon Demo Mode: Accept OTP 123456
     if otp == "123456":
-        session["user"] = {
-            "name": "Adarsh",
-            "email": "adarsh@medireach.ai",
+        user_data = {
             "mobile": f"+91 {mobile[-10:]}",
-            "given_name": "Adarsh",
-            "role": "PHC Administrator"
+            "role": role,
+            "given_name": mobile[-4:]
         }
+        
+        if role == "PHC User":
+            phc_code = data.get("phc_code", "").strip()
+            phc_name = data.get("phc_name", "").strip()
+            if not phc_code:
+                return jsonify({"success": False, "error": "Please select a PHC from the dropdown."}), 400
+            user_data.update({
+                "name": f"Supervisor ({phc_name})",
+                "email": f"{phc_code.lower()}@phc.medireach.ai",
+                "given_name": "Supervisor",
+                "phc_code": phc_code,
+                "phc_name": phc_name,
+                "portal": "phc_portal"
+            })
+        elif role == "District Admin":
+            district = data.get("district", "").strip()
+            if not district:
+                return jsonify({"success": False, "error": "Please select a district."}), 400
+            user_data.update({
+                "name": f"District Admin ({district})",
+                "email": f"{district.lower().replace(' ', '')}@district.medireach.ai",
+                "given_name": "District Officer",
+                "district": district,
+                "portal": "mission_control"
+            })
+        elif role == "State Admin":
+            user_data.update({
+                "name": "State Admin (Telangana)",
+                "email": "state.admin@medireach.ai",
+                "given_name": "State Director",
+                "portal": "mission_control"
+            })
+        elif role == "Transport Coordinator":
+            user_data.update({
+                "name": "Transport Coordinator",
+                "email": "logistics@medireach.ai",
+                "given_name": "Logistics Lead",
+                "portal": "mission_control"
+            })
+        else:
+            return jsonify({"success": False, "error": f"Invalid role selected: {role}"}), 400
+            
+        session["user"] = user_data
+        
+        # Save user to DB (best-effort write to Supabase, fallback SQLite)
+        db_insert_user(user_data)
+        
         return jsonify({"success": True, "redirect": url_for("dashboard")})
         
     return jsonify({"success": False, "error": "Invalid verification code. Use 123456 for Demo."}), 401
@@ -1414,6 +1898,347 @@ def api_rhim_sync_stats():
     except Exception as e:
         safe_print(f"RHIM stats error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHC SUPERVISOR PORTAL ROUTES & APIS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/phc-portal/dashboard")
+def phc_dashboard():
+    return redirect(url_for("dashboard"))
+
+@app.route("/phc-portal/inventory", methods=["GET", "POST"])
+def phc_inventory():
+    phc_code = session["user"].get("phc_code")
+    all_meds = db_get_medicines()
+    med_map = {m["id"]: m for m in all_meds}
+    
+    if request.method == "POST":
+        try:
+            medicine_id = request.form.get("medicine_id")
+            stock_change = int(request.form.get("stock_change", 0))
+            change_type = request.form.get("change_type", "set") # 'dispense', 'add', 'set'
+            batch_number = request.form.get("batch_number", "")
+            
+            # Fetch existing stock first
+            existing = query_sqlite("SELECT stock FROM inventory WHERE phc_code = ? AND medicine_id = ?", (phc_code, medicine_id))
+            current_stock = existing[0]["stock"] if existing else 0
+                
+            if change_type == "add":
+                new_stock = current_stock + stock_change
+            elif change_type == "dispense":
+                new_stock = max(0, current_stock - stock_change)
+            else:
+                new_stock = max(0, stock_change)
+                
+            db_update_inventory(phc_code, medicine_id, new_stock, batch_number)
+                
+            # Clear cache
+            with _CACHE_LOCK:
+                _CACHE.pop("inventory", None)
+                _CACHE.pop("shortage_alerts", None)
+                
+            flash("Stock level updated successfully.", "success")
+        except Exception as e:
+            flash(f"Error updating stock: {e}", "danger")
+        return redirect(url_for("phc_inventory"))
+        
+    # GET: Retrieve inventory
+    inventory_rows = query_sqlite("SELECT * FROM inventory WHERE phc_code = ?", (phc_code,))
+    if not inventory_rows:
+        try:
+            inventory_rows = supabase_request(f"inventory?phc_code=eq.{phc_code}")
+        except Exception:
+            inventory_rows = []
+            
+    local_inventory = []
+    for r in inventory_rows:
+        med_id = r.get("medicine_id")
+        stock = r.get("stock", 0)
+        med_info = med_map.get(med_id, {"name": med_id, "category": "Unknown", "unit": "Units"})
+        local_inventory.append({
+            "medicine_id": med_id,
+            "name": med_info["name"],
+            "category": med_info["category"],
+            "unit": med_info["unit"],
+            "stock": stock
+        })
+    local_inventory.sort(key=lambda x: x["name"])
+    
+    return render_template(
+        "phc_inventory.html",
+        local_inventory=local_inventory,
+        all_medicines=all_meds,
+        user=session["user"]
+    )
+
+@app.route("/phc-portal/outbreaks", methods=["GET", "POST"])
+def phc_outbreaks():
+    phc_code = session["user"].get("phc_code")
+    
+    if request.method == "POST":
+        try:
+            disease = request.form.get("disease")
+            affected = int(request.form.get("affected", 0))
+            severity = request.form.get("severity", "Medium")
+            spread_rate = float(request.form.get("spread_rate", 1.2))
+            started = request.form.get("started") or datetime.now().strftime("%Y-%m-%d")
+            
+            # Map disease to category
+            disease_categories = {
+                "Malaria": "Vector-Borne",
+                "Dengue": "Vector-Borne",
+                "Diarrhea": "Water-Borne",
+                "Cholera": "Water-Borne",
+                "Typhoid": "Infectious",
+                "Influenza": "Respiratory",
+                "Gastroenteritis": "Stomach"
+            }
+            category = disease_categories.get(disease, "Other")
+            
+            outbreak_data = {
+                "phc_code": phc_code,
+                "disease": disease,
+                "affected": affected,
+                "severity": severity,
+                "spread_rate": spread_rate,
+                "started": started,
+                "disease_category": category,
+                "cases_reported": affected
+            }
+            
+            db_insert_outbreak(outbreak_data)
+            
+            # Clear cache
+            with _CACHE_LOCK:
+                _CACHE.pop("outbreaks", None)
+                _CACHE.pop("shortage_alerts", None)
+                
+            flash("Outbreak report logged successfully.", "success")
+        except Exception as e:
+            flash(f"Error logging outbreak: {e}", "danger")
+        return redirect(url_for("phc_outbreaks"))
+        
+    # GET: Retrieve outbreaks
+    outbreak_rows = query_sqlite("SELECT * FROM disease_outbreaks WHERE phc_code = ? ORDER BY started DESC", (phc_code,))
+    if not outbreak_rows:
+        try:
+            outbreak_rows = supabase_request(f"disease_outbreaks?phc_code=eq.{phc_code}&order=started.desc")
+        except Exception:
+            outbreak_rows = []
+            
+    return render_template(
+        "phc_outbreaks.html",
+        local_outbreaks=outbreak_rows,
+        user=session["user"]
+    )
+
+@app.route("/phc-portal/requests", methods=["GET", "POST"])
+def phc_requests():
+    phc_code = session["user"].get("phc_code")
+    all_meds = db_get_medicines()
+    med_map = {m["id"]: m for m in all_meds}
+    
+    if request.method == "POST":
+        try:
+            medicine_id = request.form.get("medicine_id")
+            quantity = int(request.form.get("quantity", 0))
+            priority = request.form.get("priority", "Medium")
+            
+            request_data = {
+                "phc_code": phc_code,
+                "medicine_id": medicine_id,
+                "quantity": quantity,
+                "priority": priority,
+                "status": "Pending"
+            }
+            db_insert_request(request_data)
+            
+            flash("Replenishment request submitted successfully.", "success")
+        except Exception as e:
+            flash(f"Error submitting request: {e}", "danger")
+        return redirect(url_for("phc_requests"))
+        
+    # GET: Retrieve requests
+    request_rows = query_sqlite("SELECT * FROM medicine_requests WHERE phc_code = ? ORDER BY created_at DESC", (phc_code,))
+    if not request_rows:
+        try:
+            request_rows = supabase_request(f"medicine_requests?phc_code=eq.{phc_code}&order=created_at.desc")
+        except Exception:
+            request_rows = []
+        
+    formatted_requests = []
+    for req in request_rows:
+        med_id = req.get("medicine_id")
+        med_name = med_map.get(med_id, {}).get("name", med_id)
+        formatted_requests.append({
+            "id": req.get("id"),
+            "medicine_name": med_name,
+            "quantity": req.get("quantity"),
+            "priority": req.get("priority", "Medium"),
+            "status": req.get("status", "Pending"),
+            "created_at": req.get("created_at")
+        })
+        
+    return render_template(
+        "phc_requests.html",
+        local_requests=formatted_requests,
+        all_medicines=all_meds,
+        user=session["user"]
+    )
+
+@app.route("/phc-portal/patient-statistics", methods=["POST"])
+def phc_patient_statistics():
+    phc_code = session["user"].get("phc_code")
+    try:
+        opd_total = int(request.form.get("opd_patients_total", 0))
+        opd_new = int(request.form.get("opd_new_cases", 0))
+        opd_ref = int(request.form.get("opd_referred_cases", 0))
+        opd_imm = int(request.form.get("opd_immunizations", 0))
+        recorded_date = request.form.get("recorded_date") or datetime.now().strftime("%Y-%m-%d")
+        
+        stat_data = {
+            "phc_code": phc_code,
+            "opd_patients_total": opd_total,
+            "opd_new_cases": opd_new,
+            "opd_referred_cases": opd_ref,
+            "opd_immunizations": opd_imm,
+            "recorded_date": recorded_date
+        }
+        db_insert_patient_statistics(stat_data)
+        flash("Patient statistics logged successfully.", "success")
+    except Exception as e:
+        flash(f"Error logging patient statistics: {e}", "danger")
+    return redirect(url_for("dashboard"))
+
+@app.route("/phc-portal/sync", methods=["POST"])
+def phc_sync():
+    phc_code = session["user"].get("phc_code")
+    phc_name = session["user"].get("phc_name")
+    
+    # Try to find the district from database
+    phc_district = "Unknown"
+    try:
+        villages = db_get_villages()
+        for v in villages:
+            if v["id"] == phc_code:
+                phc_district = v["district"]
+                break
+    except Exception:
+        pass
+    
+    try:
+        all_meds = db_get_medicines()
+        med_map = {m["id"]: m for m in all_meds}
+        
+        # 1. Fetch inventory
+        inventory_rows = query_sqlite("SELECT * FROM inventory WHERE phc_code = ?", (phc_code,))
+        if not inventory_rows:
+            inventory_rows = supabase_request(f"inventory?phc_code=eq.{phc_code}")
+        inv_items = len(inventory_rows)
+        inv_units = sum(r.get("stock", 0) for r in inventory_rows)
+        
+        inv_crit = 0
+        inventory_payload = []
+        for r in inventory_rows:
+            med_id = r.get("medicine_id")
+            stock = r.get("stock", 0)
+            med_name = med_map.get(med_id, {}).get("name", med_id)
+            
+            daily_cons = get_daily_consumption(phc_code, med_id, db_get_villages())
+            risk, days_rem = calculate_risk_level(stock, daily_cons)
+            
+            if risk == "Critical":
+                inv_crit += 1
+                
+            inventory_payload.append({
+                "name": med_name,
+                "units": stock,
+                "status": "critical" if risk == "Critical" else "low" if risk == "High" else "ok"
+            })
+            
+        # 2. Fetch outbreaks
+        outbreak_rows = query_sqlite("SELECT * FROM disease_outbreaks WHERE phc_code = ?", (phc_code,))
+        if not outbreak_rows:
+            outbreak_rows = supabase_request(f"disease_outbreaks?phc_code=eq.{phc_code}")
+        disease_reports = len(outbreak_rows)
+        disease_cases = sum(r.get("affected", 0) for r in outbreak_rows)
+        disease_alerts = sum(1 for r in outbreak_rows if r.get("severity") in ["High", "Critical"])
+        
+        disease_payload = []
+        for r in outbreak_rows:
+            disease_payload.append({
+                "disease": r.get("disease"),
+                "cases": r.get("affected", 0),
+                "severity": r.get("severity", "Medium")
+            })
+            
+        # 3. Fetch patient stats
+        patient_rows = query_sqlite("SELECT * FROM patient_statistics WHERE phc_code = ? ORDER BY recorded_date DESC LIMIT 1", (phc_code,))
+        if patient_rows:
+            p = patient_rows[0]
+            opd_total = p.get("opd_patients_total", 0)
+            opd_new = p.get("opd_new_cases", 0)
+            opd_ref = p.get("opd_referred_cases", 0)
+            opd_imm = p.get("opd_immunizations", 0)
+        else:
+            opd_total = max(30, disease_cases * 3 + random.randint(10, 50))
+            opd_new = int(opd_total * 0.8)
+            opd_ref = int(opd_total * 0.05 + disease_alerts * 3)
+            opd_imm = random.randint(5, 30)
+        
+        import hashlib as _hl
+        sync_id = _hl.md5(f"{phc_code}-{datetime.now().isoformat()}".encode()).hexdigest()
+        
+        row = {
+            "sync_id":                  sync_id,
+            "phc_code":                 phc_code,
+            "phc_name":                 phc_name,
+            "district":                 phc_district,
+            "synced_at":                datetime.now().isoformat(),
+            "sync_source":              "PHC-Portal",
+            "inventory_items_received": inv_items,
+            "inventory_total_units":    inv_units,
+            "inventory_critical_items": inv_crit,
+            "disease_reports_received": disease_reports,
+            "disease_cases_total":      disease_cases,
+            "disease_alerts":           disease_alerts,
+            "opd_patients_total":       opd_total,
+            "opd_new_cases":            opd_new,
+            "opd_referred_cases":       opd_ref,
+            "opd_immunizations":        opd_imm,
+            "inventory_payload":        json.dumps({"items": inventory_payload}),
+            "disease_payload":          json.dumps({"reports": disease_payload}),
+            "opd_payload":              json.dumps({
+                "total": opd_total, "new": opd_new, "referred": opd_ref, "immunizations": opd_imm,
+                "top_complaints": ["Fever", "Cough", "Diarrhea"]
+            }),
+            "sync_status": "completed",
+        }
+        
+        db_insert_sync_log(row)
+        
+        socketio.emit("data_updated", {
+            "type": "sync",
+            "message": f"Real-time Data Sync completed for {phc_name} PHC ({phc_district} District).",
+            "icon": "🔄",
+            "sync_data": row
+        })
+        
+        with _CACHE_LOCK:
+            _CACHE.pop("inventory", None)
+            _CACHE.pop("outbreaks", None)
+            _CACHE.pop("shortage_alerts", None)
+            
+        return jsonify({
+            "success": True, 
+            "message": "Data successfully synchronized with MediReach Mission Control.",
+            "sync_id": sync_id
+        })
+    except Exception as e:
+        safe_print(f"Error transmitting PHC Portal data: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
