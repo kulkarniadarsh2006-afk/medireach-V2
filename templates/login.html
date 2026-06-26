@@ -30,116 +30,113 @@
       <p class="brand-tag">Decision Intelligence &amp; Distribution</p>
     </div>
 
-    <!-- GLASS LOGIN CARD -->
+    <!-- GLASS LOGIN/SIGNUP CARD -->
     <div class="card login-card">
       
-      <!-- SCREEN 1: MOBILE & ROLE SELECT -->
-      <div id="screen-mobile" class="auth-screen">
-        <h3 class="auth-title" id="auth-title-text">Welcome to MediReach</h3>
-        <p class="auth-desc" id="auth-desc-text">Select your Health Centre and enter mobile number to access your local PHC console.</p>
+      <!-- TABS -->
+      <div class="portal-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); padding: 0.3rem; border-radius: 10px; border: 1px solid var(--border);">
+        <button class="portal-tab active" id="tab-signin" onclick="switchAuthTab('signin')" style="flex: 1; padding: 0.6rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; background: var(--primary); color: #fff;">Sign In</button>
+        <button class="portal-tab" id="tab-signup" onclick="switchAuthTab('signup')" style="flex: 1; padding: 0.6rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; background: transparent; color: var(--text3);">Sign Up</button>
+      </div>
+
+      <!-- FORM ERROR NOTIFICATION -->
+      <div id="auth-alert" class="alert alert-critical" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.78rem; margin-bottom: 1rem; font-weight: 600;"></div>
+
+      <!-- SCREEN 1: SIGN IN -->
+      <form id="form-signin" onsubmit="handleSignIn(event)" class="auth-screen">
+        <h3 class="auth-title">Welcome Back</h3>
+        <p class="auth-desc">Sign in with your email to access your role-based dashboard.</p>
         
+        <div class="form-group" style="text-align:left; margin-bottom:1rem">
+          <label class="form-label" style="font-weight:700">Email Address</label>
+          <input type="email" class="form-control" id="signin-email" placeholder="name@facility.gov.in" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+        </div>
+
+        <div class="form-group" style="text-align:left; margin-bottom:1.5rem">
+          <label class="form-label" style="font-weight:700">Password</label>
+          <input type="password" class="form-control" id="signin-password" placeholder="••••••••" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+        </div>
+
+        <button type="submit" class="run-btn" id="signin-btn">
+          <span>Sign In to Portal</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </form>
+
+      <!-- SCREEN 2: SIGN UP -->
+      <form id="form-signup" onsubmit="handleSignUp(event)" class="auth-screen" style="display:none">
+        <h3 class="auth-title">Create Account</h3>
+        <p class="auth-desc">Register a new profile linked directly to Supabase authentication.</p>
+        
+        <div class="form-group" style="text-align:left; margin-bottom:1rem">
+          <label class="form-label" style="font-weight:700">Email Address</label>
+          <input type="email" class="form-control" id="signup-email" placeholder="user@medireach.ai" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+        </div>
+
+        <div class="form-group" style="text-align:left; margin-bottom:1rem">
+          <label class="form-label" style="font-weight:700">Password</label>
+          <input type="password" class="form-control" id="signup-password" placeholder="Min 6 characters" required minlength="6" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+        </div>
+
         <!-- ROLE SELECTOR -->
-        <div class="form-group" style="text-align:left; margin-bottom:1.25rem;">
-          <label class="form-label" style="font-weight:700">Select Portal Role</label>
-          <select class="form-control" id="login-role" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="handleRoleChange()">
+        <div class="form-group" style="text-align:left; margin-bottom:1rem">
+          <label class="form-label" style="font-weight:700">Access Role</label>
+          <select class="form-control" id="signup-role" onchange="handleSignUpRoleChange()" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
             <option value="PHC User" selected>PHC Supervisor</option>
             <option value="District Admin">District Admin</option>
             <option value="State Admin">State Admin</option>
-            <option value="Transport Coordinator">Transport Coordinator</option>
           </select>
         </div>
 
-        <!-- PHC SELECTOR (Visible only when role is PHC User) -->
-        <div class="form-group" id="phc-select-group" style="text-align:left; margin-bottom:1.25rem;">
-          <label class="form-label" style="font-weight:700">Select Public Health Centre</label>
-          <select class="form-control" id="login-phc" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="validatePhoneInput()">
-            <option value="">-- Choose Your PHC --</option>
-            {% for phc in phcs %}
-              <option value="{{ phc.code }}" data-name="{{ phc.name }}">{{ phc.name }} ({{ phc.district }})</option>
-            {% endfor %}
+        <!-- DYNAMIC PHC SELECTOR -->
+        <div class="form-group" id="signup-phc-group" style="text-align:left; margin-bottom:1rem">
+          <label class="form-label" style="font-weight:700">Select Facility (PHC)</label>
+          <select class="form-control" id="signup-phc" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
+            <option value="">-- Choose PHC --</option>
+            <!-- Loaded dynamically from Supabase on load -->
           </select>
         </div>
 
-        <!-- DISTRICT SELECTOR (Visible only when role is District Admin) -->
-        <div class="form-group" id="district-select-group" style="display:none; text-align:left; margin-bottom:1.25rem;">
+        <!-- DYNAMIC DISTRICT SELECTOR -->
+        <div class="form-group" id="signup-district-group" style="display:none; text-align:left; margin-bottom:1rem">
           <label class="form-label" style="font-weight:700">Select District</label>
-          <select class="form-control" id="login-district" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; width: 100%; outline: none;" onchange="validatePhoneInput()">
-            <option value="">-- Choose Your District --</option>
+          <select class="form-control" id="signup-district" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
+            <option value="">-- Choose District --</option>
+            <option value="Sangareddy">Sangareddy</option>
             <option value="Warangal">Warangal</option>
             <option value="Nalgonda">Nalgonda</option>
             <option value="Mahabubnagar">Mahabubnagar</option>
-            <option value="Raichur">Raichur</option>
-            <option value="Kalaburagi">Kalaburagi</option>
-            <option value="Koppal">Koppal</option>
-            <option value="Vijayapura">Vijayapura</option>
-            <option value="Ballari">Ballari</option>
-            <option value="Yadgir">Yadgir</option>
-            <option value="Dharwad">Dharwad</option>
-            <option value="Haveri">Haveri</option>
+            <option value="Karimnagar">Karimnagar</option>
+            <option value="Khammam">Khammam</option>
+            <option value="Nizamabad">Nizamabad</option>
+            <option value="Medak">Medak</option>
+            <option value="Adilabad">Adilabad</option>
+            <option value="Rangareddy">Rangareddy</option>
           </select>
         </div>
 
-        <!-- MOBILE PHONE NUMBER -->
-        <div class="form-group" style="text-align:left; margin-bottom:1.5rem">
-          <label class="form-label" style="font-weight:700">Mobile Number</label>
-          <div class="mobile-input-wrap">
-            <span class="phone-prefix">+91</span>
-            <input type="tel" class="form-control phone-input" id="login-phone" placeholder="98765 43210" maxlength="10" autocomplete="off" oninput="validatePhoneInput()"/>
-          </div>
-          <span class="error-msg" id="phone-error"></span>
-        </div>
-
-        <button class="run-btn" id="send-otp-btn" onclick="sendOtpCode()" disabled>
-          <span>Send Verification Code</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </div>
-
-      <!-- SCREEN 2: OTP VERIFICATION -->
-      <div id="screen-otp" class="auth-screen" style="display:none">
-        <h3 class="auth-title">Verify Credentials</h3>
-        <p class="auth-desc">We've sent a 6-digit verification code to <strong id="display-phone" style="color:var(--text)">+91 99999 99999</strong>.</p>
-        <button class="btn-edit" onclick="goBackToMobile()">✏️ Edit Details</button>
-
-        <div class="form-group" style="margin-bottom:1.5rem">
-          <label class="form-label" style="text-align:left; font-weight:700; margin-bottom:.5rem">6-Digit Code</label>
-          <div class="otp-inputs-grid">
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(0, this)" onkeydown="digitKey(0, event)" autocomplete="off"/>
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(1, this)" onkeydown="digitKey(1, event)" autocomplete="off"/>
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(2, this)" onkeydown="digitKey(2, event)" autocomplete="off"/>
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(3, this)" onkeydown="digitKey(3, event)" autocomplete="off"/>
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(4, this)" onkeydown="digitKey(4, event)" autocomplete="off"/>
-            <input type="text" class="otp-digit" maxlength="1" oninput="digitInput(5, this)" onkeydown="digitKey(5, event)" autocomplete="off"/>
-          </div>
-          <span class="error-msg" id="otp-error"></span>
-        </div>
-
-        <button class="run-btn" id="verify-btn" onclick="verifyOtpCode()" style="margin-bottom:1rem">
-          <span>Verify &amp; Enter Portal</span>
+        <button type="submit" class="run-btn" id="signup-btn" style="background: var(--cyan); border-color: var(--cyan); color: #000;">
+          <span>Register New Account</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
         </button>
-
-        <div class="otp-footer">
-          <span id="timer-text">Resend code in <strong id="timer-count">30</strong>s</span>
-          <button id="resend-btn" onclick="resendOtpCode()" style="display:none">Resend Code</button>
-        </div>
-      </div>
+      </form>
 
     </div>
 
-    <!-- DEMO HINT BOX -->
-    <div class="demo-badge-card animate-in" style="animation-delay:.2s">
-      <div style="font-size:1.1rem">💡</div>
-      <div>
-        <strong>Hackathon Demo Mode Active</strong>
-        <span style="display:block;font-size:.7rem;opacity:.8;margin-top:.2rem">Enter any mobile number and use OTP <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan);font-weight:700">123456</code> to log in instantly.</span>
+    <!-- DEMO ACCOUNTS BADGE -->
+    <div class="demo-badge-card animate-in" style="animation-delay:.2s; display:flex; flex-direction:column; gap:0.4rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:1.1rem">💡</span>
+        <strong>Supabase Realtime Accounts Active</strong>
+      </div>
+      <div style="font-size:0.72rem; line-height:1.4; opacity:0.85;">
+        You can create credentials instantly using the <strong>Sign Up</strong> tab to register role profiles directly into Supabase.
       </div>
     </div>
   </div>
 </div>
 
 <style>
-/* ─── STYLES FOR FULL PAGE LOGIN ─── */
 .login-wrapper {
   position: relative;
   min-height: calc(100vh - 120px);
@@ -198,126 +195,19 @@
   line-height: 1.5;
   margin-bottom: 1.5rem;
 }
-.mobile-input-wrap {
-  display: flex;
-  align-items: center;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  transition: all .2s;
-}
-.mobile-input-wrap:focus-within {
-  border-color: var(--primary);
-  background: rgba(37,99,235,.06);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
-}
-.phone-prefix {
-  padding: 0 1rem;
-  font-size: .88rem;
-  font-weight: 700;
-  color: var(--text2);
-  border-right: 1px solid var(--border);
-  user-select: none;
-}
-.phone-input {
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  padding: .75rem !important;
-  font-size: .95rem !important;
-  font-weight: 600 !important;
-  letter-spacing: .05em;
-  width: 100%;
-}
-.error-msg {
-  display: block;
-  font-size: .7rem;
-  color: var(--red-l);
-  font-weight: 600;
-  margin-top: .375rem;
-  min-height: 1rem;
-}
-.btn-edit {
-  background: transparent;
-  border: none;
-  color: var(--primary-l);
-  font-size: .75rem;
-  font-weight: 700;
-  cursor: pointer;
-  align-self: flex-start;
-  margin-top: -1.25rem;
-  margin-bottom: 1.5rem;
-  padding: 0;
-  transition: opacity .2s;
-}
-.btn-edit:hover {
-  opacity: .8;
-}
-
-/* OTP Grid inputs */
-.otp-inputs-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: .5rem;
-}
-.otp-digit {
-  width: 100%;
-  aspect-ratio: 1;
-  text-align: center;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
-  outline: none;
-  transition: all .2s;
-  padding: 0;
-}
-.otp-digit:focus {
-  border-color: var(--primary);
-  background: rgba(37,99,235,.08);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
-}
-.otp-footer {
-  font-size: .78rem;
-  color: var(--text3);
-}
-.otp-footer button {
-  background: transparent;
-  border: none;
-  color: var(--cyan);
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-  font-family: 'Inter', sans-serif;
-}
-.otp-footer button:hover {
-  text-decoration: underline;
-}
-
 .demo-badge-card {
-  display: flex;
-  align-items: flex-start;
-  gap: .75rem;
-  padding: 1rem 1.25rem;
-  border-radius: 12px;
   border: 1px solid rgba(6,182,212,.3);
   background: rgba(6,182,212,.06);
   backdrop-filter: blur(12px);
   text-align: left;
-  font-size: .78rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
   color: var(--text2);
   width: 100%;
 }
 .demo-badge-card strong {
   color: var(--cyan);
 }
-
-/* Glowing background orbs */
 .glow-orb {
   position: absolute;
   border-radius: 50%;
@@ -339,24 +229,22 @@
   bottom: 10%;
   right: 20%;
 }
-
-[data-theme='light'] .glow-orb {
-  opacity: .08;
-}
 </style>
 
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Load Supabase Client library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// Canvas animation
+// Neural Canvas Animation
 (function(){
   const canvas=document.getElementById('neural-canvas');
   if(!canvas)return;
   const ctx=canvas.getContext('2d');
   function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
   resize();window.addEventListener('resize',resize);
-  const nodes=Array.from({length:50},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*1.5+1,pulse:Math.random()*Math.PI*2}));
+  const nodes=Array.from({length:40},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+1,pulse:Math.random()*Math.PI*2}));
   function draw(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const dark=document.documentElement.getAttribute('data-theme')!=='light';
@@ -379,211 +267,191 @@
   draw();
 })();
 
-let phoneNum = '';
-let timerInterval = null;
+// Initialize Supabase Client directly on frontend
+const supabase = typeof supabase !== 'undefined' 
+  ? supabase.createClient("{{ SUPABASE_URL }}", "{{ SUPABASE_ANON_KEY }}")
+  : null;
 
-function handleRoleChange() {
-  const role = document.getElementById('login-role').value;
-  const phcGroup = document.getElementById('phc-select-group');
-  const districtGroup = document.getElementById('district-select-group');
-  const descText = document.getElementById('auth-desc-text');
-  const titleText = document.getElementById('auth-title-text');
-  
-  if (role === 'PHC User') {
-    phcGroup.style.display = 'block';
-    districtGroup.style.display = 'none';
-    titleText.textContent = 'PHC Portal Login';
-    descText.textContent = 'Select your Health Centre and enter mobile number to access your local PHC console.';
-  } else if (role === 'District Admin') {
-    phcGroup.style.display = 'none';
-    districtGroup.style.display = 'block';
-    titleText.textContent = 'District Admin Login';
-    descText.textContent = 'Select your District and enter mobile number to access the district admin dashboard.';
-  } else if (role === 'State Admin') {
-    phcGroup.style.display = 'none';
-    districtGroup.style.display = 'none';
-    titleText.textContent = 'State Admin Login';
-    descText.textContent = 'Enter your mobile number to access the state director control center.';
-  } else if (role === 'Transport Coordinator') {
-    phcGroup.style.display = 'none';
-    districtGroup.style.display = 'none';
-    titleText.textContent = 'Logistics Login';
-    descText.textContent = 'Enter your mobile number to access the logistics and fleet management terminal.';
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!supabase) {
+    showAlert("Critical Error: Supabase client failed to load. Check console/config.", true);
+    return;
   }
   
-  validatePhoneInput();
-}
-
-function validatePhoneInput() {
-  const input = document.getElementById('login-phone');
-  const role = document.getElementById('login-role').value;
-  const phcSelect = document.getElementById('login-phc');
-  const districtSelect = document.getElementById('login-district');
-  const btn = document.getElementById('send-otp-btn');
-  const err = document.getElementById('phone-error');
-  
-  // Strip non-digits
-  input.value = input.value.replace(/\D/g, '');
-  
-  err.textContent = '';
-  
-  let valid = input.value.length === 10;
-  if (role === 'PHC User' && !phcSelect.value) {
-    valid = false;
-  } else if (role === 'District Admin' && !districtSelect.value) {
-    valid = false;
+  // Load PHC dropdown list directly from Supabase
+  try {
+    const { data: phcs, error } = await supabase
+      .from('phcs')
+      .select('PHC_Code, PHC_Name, District')
+      .order('PHC_Name');
+      
+    if (error) throw error;
+    
+    const selectEl = document.getElementById("signup-phc");
+    if (phcs && selectEl) {
+      phcs.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.PHC_Code;
+        opt.textContent = `${p.PHC_Name} (${p.District})`;
+        selectEl.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.error("Error loading PHCs:", err);
   }
+});
+
+// UI Toggles
+let currentTab = 'signin';
+function switchAuthTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-signin').classList.toggle('active', tab === 'signin');
+  document.getElementById('tab-signin').style.background = tab === 'signin' ? 'var(--primary)' : 'transparent';
+  document.getElementById('tab-signin').style.color = tab === 'signin' ? '#fff' : 'var(--text3)';
   
-  btn.disabled = !valid;
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+  document.getElementById('tab-signup').style.background = tab === 'signup' ? 'var(--cyan)' : 'transparent';
+  document.getElementById('tab-signup').style.color = tab === 'signup' ? '#000' : 'var(--text3)';
+
+  document.getElementById('form-signin').style.display = tab === 'signin' ? 'flex' : 'none';
+  document.getElementById('form-signup').style.display = tab === 'signup' ? 'flex' : 'none';
+  hideAlert();
 }
 
-function sendOtpCode() {
-  const input = document.getElementById('login-phone');
-  const btn = document.getElementById('send-otp-btn');
-  phoneNum = input.value;
+function handleSignUpRoleChange() {
+  const role = document.getElementById("signup-role").value;
+  document.getElementById("signup-phc-group").style.display = role === 'PHC User' ? 'block' : 'none';
+  document.getElementById("signup-district-group").style.display = role === 'District Admin' ? 'block' : 'none';
+}
+
+function showAlert(msg, isCrit = false) {
+  const alertEl = document.getElementById("auth-alert");
+  alertEl.textContent = msg;
+  alertEl.className = isCrit ? "alert alert-critical" : "alert alert-success";
+  alertEl.style.display = "block";
+}
+
+function hideAlert() {
+  document.getElementById("auth-alert").style.display = "none";
+}
+
+// Authentication Handlers
+async function handleSignIn(e) {
+  e.preventDefault();
+  hideAlert();
   
-  if (phoneNum.length !== 10) return;
+  const email = document.getElementById("signin-email").value.trim();
+  const password = document.getElementById("signin-password").value;
+  const btn = document.getElementById("signin-btn");
   
   btn.disabled = true;
-  btn.querySelector('span').textContent = 'Generating Code...';
+  btn.querySelector('span').textContent = 'Authenticating...';
   
-  setTimeout(() => {
-    // Show Screen 2
-    document.getElementById('screen-mobile').style.display = 'none';
-    document.getElementById('screen-otp').style.display = 'flex';
-    document.getElementById('display-phone').textContent = `+91 ${phoneNum.slice(0, 5)} ${phoneNum.slice(5)}`;
+  try {
+    // 1. Authenticate with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
     
-    // Focus first OTP box
+    if (authError) throw authError;
+    
+    // 2. Fetch User Profile
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+      
+    if (profileError || !profile) {
+      // Fallback or warning if user profile wasn't written to users table
+      throw new Error(profileError?.message || "User profile not found in database.");
+    }
+    
+    // Sync session with the backend Flask session
+    await fetch('/api/auth/login-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: profile })
+    });
+
+    // Store profile in browser session and redirect to dashboard
+    sessionStorage.setItem("medireach_session", JSON.stringify(profile));
+    sessionStorage.setItem("supabase_uid", authData.user.id);
+    
+    showAlert("Login successful! Loading dashboard...", false);
     setTimeout(() => {
-      const inputs = document.querySelectorAll('.otp-digit');
-      if (inputs.length > 0) inputs[0].focus();
-    }, 150);
+      window.location.href = "/dashboard";
+    }, 1000);
     
-    showToast("Verification code generated! Demo OTP: 123456", "💬");
-    startResendTimer();
-  }, 1000);
-}
-
-function goBackToMobile() {
-  document.getElementById('screen-otp').style.display = 'none';
-  document.getElementById('screen-mobile').style.display = 'flex';
-  document.getElementById('send-otp-btn').disabled = false;
-  document.getElementById('send-otp-btn').querySelector('span').textContent = 'Send Verification Code';
-  clearInterval(timerInterval);
-}
-
-// Resend OTP logic
-function startResendTimer() {
-  const countEl = document.getElementById('timer-count');
-  const textEl = document.getElementById('timer-text');
-  const resendBtn = document.getElementById('resend-btn');
-  
-  textEl.style.display = 'inline';
-  resendBtn.style.display = 'none';
-  
-  let left = 30;
-  countEl.textContent = left;
-  
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    left--;
-    countEl.textContent = left;
-    if (left <= 0) {
-      clearInterval(timerInterval);
-      textEl.style.display = 'none';
-      resendBtn.style.display = 'inline';
-    }
-  }, 1000);
-}
-
-function resendOtpCode() {
-  showToast("Code resent! Demo OTP: 123456", "🔄");
-  
-  // Reset digit fields
-  const inputs = document.querySelectorAll('.otp-digit');
-  inputs.forEach(input => input.value = '');
-  inputs[0].focus();
-  
-  startResendTimer();
-}
-
-// 6 digit key behaviors
-function digitInput(index, el) {
-  el.value = el.value.replace(/\D/g, '');
-  if (el.value.length === 1) {
-    const next = el.nextElementSibling;
-    if (next && next.classList.contains('otp-digit')) {
-      next.focus();
-    }
+  } catch (err) {
+    console.error("Sign In Error:", err);
+    showAlert(err.message || "Invalid credentials. Please try again.", true);
+    btn.disabled = false;
+    btn.querySelector('span').textContent = 'Sign In to Portal';
   }
 }
 
-function digitKey(index, e) {
-  const el = e.target;
-  if (e.key === 'Backspace' && el.value.length === 0) {
-    const prev = el.previousElementSibling;
-    if (prev && prev.classList.contains('otp-digit')) {
-      prev.focus();
-      prev.value = '';
-    }
+async function handleSignUp(e) {
+  e.preventDefault();
+  hideAlert();
+  
+  const email = document.getElementById("signup-email").value.trim();
+  const password = document.getElementById("signup-password").value;
+  const role = document.getElementById("signup-role").value;
+  const phcId = document.getElementById("signup-phc").value;
+  const district = document.getElementById("signup-district").value;
+  const btn = document.getElementById("signup-btn");
+  
+  if (role === 'PHC User' && !phcId) {
+    showAlert("Please select a PHC facility.", true);
+    return;
   }
-}
-
-async function verifyOtpCode() {
-  const digits = Array.from(document.querySelectorAll('.otp-digit')).map(input => input.value).join('');
-  const err = document.getElementById('otp-error');
-  const btn = document.getElementById('verify-btn');
-  const role = document.getElementById('login-role').value;
-  const phcSelect = document.getElementById('login-phc');
-  const districtSelect = document.getElementById('login-district');
-  
-  err.textContent = '';
-  
-  if (digits.length !== 6) {
-    err.textContent = 'Please enter all 6 digits of the code.';
+  if (role === 'District Admin' && !district) {
+    showAlert("Please select a district.", true);
     return;
   }
   
   btn.disabled = true;
-  const originalText = btn.querySelector('span').textContent;
-  btn.querySelector('span').textContent = 'Verifying Code...';
-  
-  let phcName = '';
-  if (phcSelect && phcSelect.selectedIndex >= 0) {
-    const opt = phcSelect.options[phcSelect.selectedIndex];
-    phcName = opt.getAttribute('data-name') || '';
-  }
+  btn.querySelector('span').textContent = 'Creating Account...';
   
   try {
-    const res = await fetch('/api/auth/mobile-login', {
+    // 1. Register Auth User in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email,
+      password: password
+    });
+    
+    if (authError) throw authError;
+    if (!authData.user) throw new Error("Account creation pending or restricted.");
+    
+    // 2. Create profile row in public.users table via stateless backend API
+    const response = await fetch('/api/auth/register-profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        mobile: phoneNum, 
-        otp: digits,
+      body: JSON.stringify({
+        uid: authData.user.id,
+        email: email,
         role: role,
-        phc_code: role === 'PHC User' ? (phcSelect ? phcSelect.value : '') : '',
-        phc_name: role === 'PHC User' ? phcName : '',
-        district: role === 'District Admin' ? (districtSelect ? districtSelect.value : '') : ''
+        phc_id: role === 'PHC User' ? phcId : null,
+        district: role === 'District Admin' ? district : null
       })
     });
-    const data = await res.json();
+    const regRes = await response.json();
+    if (!regRes.success) throw new Error(regRes.error || "Profile registration failed.");
     
-    if (data.success) {
-      showToast("Access Granted. Redirecting...", "🔓");
-      setTimeout(() => {
-        window.location.href = data.redirect;
-      }, 1000);
-    } else {
-      err.textContent = data.error;
-      btn.disabled = false;
-      btn.querySelector('span').textContent = originalText;
-    }
-  } catch(e) {
-    console.error(e);
-    err.textContent = 'Connection error. Please try again.';
+    showAlert("Account successfully registered! Switch to Sign In to log in.", false);
     btn.disabled = false;
-    btn.querySelector('span').textContent = originalText;
+    btn.querySelector('span').textContent = 'Register New Account';
+    switchAuthTab('signin');
+    document.getElementById("signin-email").value = email;
+    document.getElementById("signin-password").value = password;
+    
+  } catch (err) {
+    console.error("Sign Up Error:", err);
+    showAlert(err.message || "Registration failed. Try a different email.", true);
+    btn.disabled = false;
+    btn.querySelector('span').textContent = 'Register New Account';
   }
 }
 </script>

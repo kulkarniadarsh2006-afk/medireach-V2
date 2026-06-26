@@ -1,0 +1,128 @@
+-- MediReach AI v2 — Supabase Database Schema Initialization
+-- Execute this script in your Supabase SQL Editor to set up all required tables, indexes, and relationships.
+
+-- Enable UUID extension if not enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. Ensure PHCs table exists (references existing table structure)
+CREATE TABLE IF NOT EXISTS phcs (
+    "PHC_Code" VARCHAR(50) PRIMARY KEY,
+    "PHC_Name" VARCHAR(255) NOT NULL,
+    "District" VARCHAR(100) NOT NULL,
+    "Population_Covered" INTEGER DEFAULT 15000,
+    "Status" VARCHAR(50) DEFAULT 'Active'
+);
+
+-- 2. Create Users Profile Table (linked to Supabase Auth.Users)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('PHC User', 'District Admin', 'State Admin')),
+    phc_id VARCHAR(50) REFERENCES phcs("PHC_Code") ON DELETE SET NULL,
+    district VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Re-create/Ensure Inventory Table exists
+-- We use a simplified inventory table referencing medicine name, batch, stock, unit, and expiry.
+CREATE TABLE IF NOT EXISTS inventory (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    batch_number VARCHAR(100),
+    current_stock INTEGER NOT NULL DEFAULT 0,
+    unit VARCHAR(50) DEFAULT 'Units',
+    expiry_date DATE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Create Patient Statistics Table
+CREATE TABLE IF NOT EXISTS patient_statistics (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    total_patients INTEGER NOT NULL DEFAULT 0,
+    male_patients INTEGER DEFAULT 0,
+    female_patients INTEGER DEFAULT 0,
+    children INTEGER DEFAULT 0,
+    senior_citizens INTEGER DEFAULT 0,
+    recorded_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Create Disease Outbreaks Table
+CREATE TABLE IF NOT EXISTS disease_outbreaks (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    disease_category VARCHAR(100) NOT NULL,
+    cases_reported INTEGER NOT NULL DEFAULT 0,
+    recorded_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Create Medicine Predictions Table (AI demand forecasting results)
+CREATE TABLE IF NOT EXISTS medicine_predictions (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    predicted_demand INTEGER NOT NULL DEFAULT 0,
+    confidence_pct DOUBLE PRECISION DEFAULT 90.0,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Create Medicine Shortages Table (AI stockout warnings)
+CREATE TABLE IF NOT EXISTS medicine_shortages (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    current_stock INTEGER NOT NULL DEFAULT 0,
+    daily_consumption INTEGER NOT NULL DEFAULT 0,
+    days_remaining DOUBLE PRECISION NOT NULL DEFAULT 999.0,
+    risk_level VARCHAR(50) NOT NULL CHECK (risk_level IN ('Critical', 'High', 'Medium', 'Low')),
+    estimated_stockout DATE,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. Create Emergency Response Plans Table (AI responses)
+CREATE TABLE IF NOT EXISTS emergency_plans (
+    id SERIAL PRIMARY KEY,
+    phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    disease VARCHAR(100) NOT NULL,
+    severity VARCHAR(50) NOT NULL,
+    critical_medicines JSONB DEFAULT '[]'::jsonb,
+    recommended_vehicle VARCHAR(100),
+    response_hours INTEGER DEFAULT 12,
+    action VARCHAR(255) DEFAULT 'STANDBY',
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Create Medicine Transfers Table (AI stock redistribution recommendations)
+CREATE TABLE IF NOT EXISTS medicine_transfers (
+    id SERIAL PRIMARY KEY,
+    source_phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    destination_phc_id VARCHAR(50) NOT NULL REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    priority VARCHAR(50) DEFAULT 'Medium',
+    road_condition VARCHAR(100) DEFAULT 'Good',
+    transport_time INTEGER DEFAULT 4,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── SYSTEM INDEXES FOR OPTIMIZED QUERY SPEED ───
+CREATE INDEX IF NOT EXISTS idx_inventory_phc ON inventory (phc_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_medicine ON inventory (medicine_name);
+CREATE INDEX IF NOT EXISTS idx_patient_stats_phc ON patient_statistics (phc_id, recorded_date);
+CREATE INDEX IF NOT EXISTS idx_outbreaks_phc ON disease_outbreaks (phc_id, recorded_date);
+CREATE INDEX IF NOT EXISTS idx_predictions_phc ON medicine_predictions (phc_id);
+CREATE INDEX IF NOT EXISTS idx_shortages_phc ON medicine_shortages (phc_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_source ON medicine_transfers (source_phc_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_dest ON medicine_transfers (destination_phc_id);
+
+-- Enable Realtime subscriptions on crucial tables (inventory, statistics, and calculations)
+ALTER PUBLICATION supabase_realtime ADD TABLE inventory;
+ALTER PUBLICATION supabase_realtime ADD TABLE patient_statistics;
+ALTER PUBLICATION supabase_realtime ADD TABLE disease_outbreaks;
+ALTER PUBLICATION supabase_realtime ADD TABLE medicine_predictions;
+ALTER PUBLICATION supabase_realtime ADD TABLE medicine_shortages;
+ALTER PUBLICATION supabase_realtime ADD TABLE medicine_transfers;
+ALTER PUBLICATION supabase_realtime ADD TABLE emergency_plans;

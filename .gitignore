@@ -1,0 +1,14 @@
+# Python Cache
+__pycache__/
+*.pyc
+
+# Environment Secrets
+.env
+
+# Local Databases
+*.db
+medireach_local.db
+
+# OS Files
+.DS_Store
+Thumbs.db
