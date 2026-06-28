@@ -1,6 +1,21 @@
 -- MediReach AI v2 — Supabase Database Schema Initialization
 -- Execute this script in your Supabase SQL Editor to set up all required tables, indexes, and relationships.
 
+-- Drop old tables to avoid conflicts and guarantee clean v2 schema installation
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS inventory CASCADE;
+DROP TABLE IF EXISTS patient_statistics CASCADE;
+DROP TABLE IF EXISTS disease_outbreaks CASCADE;
+DROP TABLE IF EXISTS medicine_predictions CASCADE;
+DROP TABLE IF EXISTS medicine_shortages CASCADE;
+DROP TABLE IF EXISTS emergency_plans CASCADE;
+DROP TABLE IF EXISTS medicine_transfers CASCADE;
+DROP TABLE IF EXISTS medicine_requests CASCADE;
+DROP TABLE IF EXISTS shortage_alerts CASCADE;
+DROP TABLE IF EXISTS logistics_shipments CASCADE;
+DROP TABLE IF EXISTS warehouses CASCADE;
+DROP TABLE IF EXISTS medicines CASCADE;
+
 -- Enable UUID extension if not enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
