@@ -268,9 +268,10 @@
 })();
 
 // Initialize Supabase Client directly on frontend
-const supabase = typeof supabase !== 'undefined' 
-  ? supabase.createClient("{{ SUPABASE_URL }}", "{{ SUPABASE_ANON_KEY }}")
+const supabase = window.supabase
+  ? window.supabase.createClient("{{ SUPABASE_URL }}", "{{ SUPABASE_ANON_KEY }}")
   : null;
+
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (!supabase) {
