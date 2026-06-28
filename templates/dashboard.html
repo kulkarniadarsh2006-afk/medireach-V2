@@ -367,7 +367,7 @@ if (!sessionUser) {
 }
 
 // Initialize Supabase Client directly
-const supabase = window.supabase
+const supabaseClient = window.supabase
   ? window.supabase.createClient("{{ SUPABASE_URL }}", "{{ SUPABASE_ANON_KEY }}")
   : null;
 
@@ -383,10 +383,11 @@ let emergencyPlans = [];
 let transfers = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!supabase) {
+  if (!supabaseClient) {
     showToast("Supabase configuration error.", "🔴");
     return;
   }
+
   
   // Update header/role badge dynamically
   const profileNameEl = document.querySelector(".topbar-avatar");
@@ -427,13 +428,14 @@ async function loadAndBindRealtime() {
   // Enable realtime subscriptions on public tables
   const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers'];
   tables.forEach(table => {
-    supabase.channel(`realtime-${table}`)
+    supabaseClient.channel(`realtime-${table}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: table }, async (payload) => {
         console.log(`Realtime DB update caught on [${table}]:`, payload);
         await refreshDatabaseState();
       })
       .subscribe();
   });
+
 }
 
 async function refreshDatabaseState() {
@@ -449,15 +451,16 @@ async function refreshDatabaseState() {
       resEmerg,
       resTransfers
     ] = await Promise.all([
-      supabase.from('phcs').select('*'),
-      supabase.from('inventory').select('*'),
-      supabase.from('patient_statistics').select('*'),
-      supabase.from('disease_outbreaks').select('*'),
-      supabase.from('medicine_predictions').select('*'),
-      supabase.from('medicine_shortages').select('*'),
-      supabase.from('emergency_plans').select('*'),
-      supabase.from('medicine_transfers').select('*')
+      supabaseClient.from('phcs').select('*'),
+      supabaseClient.from('inventory').select('*'),
+      supabaseClient.from('patient_statistics').select('*'),
+      supabaseClient.from('disease_outbreaks').select('*'),
+      supabaseClient.from('medicine_predictions').select('*'),
+      supabaseClient.from('medicine_shortages').select('*'),
+      supabaseClient.from('emergency_plans').select('*'),
+      supabaseClient.from('medicine_transfers').select('*')
     ]);
+
 
     phcs = resPhcs.data || [];
     inventory = resInventory.data || [];
@@ -557,14 +560,14 @@ async function handlePhcSubmit(e) {
     
     // 1. Write inventory change directly to Supabase
     // Check if item exists in inventory first to update or insert
-    const { data: existingInv } = await supabase
+    const { data: existingInv } = await supabaseClient
       .from('inventory')
       .select('*')
       .eq('phc_id', code)
       .eq('medicine_name', medName);
       
     if (existingInv && existingInv.length > 0) {
-      await supabase
+      await supabaseClient
         .from('inventory')
         .update({
           current_stock: medStock,
@@ -575,7 +578,7 @@ async function handlePhcSubmit(e) {
         })
         .eq('id', existingInv[0].id);
     } else {
-      await supabase
+      await supabaseClient
         .from('inventory')
         .insert([{
           phc_id: code,
@@ -588,7 +591,7 @@ async function handlePhcSubmit(e) {
     }
     
     // 2. Insert patient demographics statistics
-    await supabase
+    await supabaseClient
       .from('patient_statistics')
       .insert([{
         phc_id: code,
@@ -602,7 +605,7 @@ async function handlePhcSubmit(e) {
       
     // 3. Insert outbreak disease statistics
     if (disCases > 0) {
-      await supabase
+      await supabaseClient
         .from('disease_outbreaks')
         .insert([{
           phc_id: code,
@@ -611,6 +614,7 @@ async function handlePhcSubmit(e) {
           recorded_date: logDate
         }]);
     }
+
     
     showToast("Data submitted! Running AI optimizations...", "⚡");
     
