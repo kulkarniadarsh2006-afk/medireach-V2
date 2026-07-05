@@ -133,6 +133,17 @@ CREATE INDEX IF NOT EXISTS idx_shortages_phc ON medicine_shortages (phc_id);
 CREATE INDEX IF NOT EXISTS idx_transfers_source ON medicine_transfers (source_phc_id);
 CREATE INDEX IF NOT EXISTS idx_transfers_dest ON medicine_transfers (destination_phc_id);
 
+-- Disable Row Level Security on all tables to allow client-side and server-side anonymous operations
+ALTER TABLE phcs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_statistics DISABLE ROW LEVEL SECURITY;
+ALTER TABLE disease_outbreaks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE medicine_predictions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE medicine_shortages DISABLE ROW LEVEL SECURITY;
+ALTER TABLE emergency_plans DISABLE ROW LEVEL SECURITY;
+ALTER TABLE medicine_transfers DISABLE ROW LEVEL SECURITY;
+
 -- Enable Realtime subscriptions on crucial tables (inventory, statistics, and calculations)
 ALTER PUBLICATION supabase_realtime ADD TABLE inventory;
 ALTER PUBLICATION supabase_realtime ADD TABLE patient_statistics;
