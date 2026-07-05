@@ -647,6 +647,17 @@ def api_auth_register_profile():
         if not uid or not email:
             return jsonify({"success": False, "error": "Missing uid or email"}), 400
             
+        # Check if email is already registered in Supabase
+        try:
+            dup_check = supabase_request(f"users?email=eq.{email}")
+            if dup_check:
+                return jsonify({"success": False, "error": "This email address is already registered."}), 400
+        except Exception:
+            # If Supabase request fails or is offline, check local SQLite database
+            existing_local = query_sqlite("SELECT id FROM users WHERE email = ?", (email,))
+            if existing_local:
+                return jsonify({"success": False, "error": "This email address is already registered."}), 400
+                
         # Insert user to Supabase
         user_row = {
             "id": uid,
