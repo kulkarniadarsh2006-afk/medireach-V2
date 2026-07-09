@@ -737,7 +737,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const emojiEl = document.getElementById("role-avatar-emoji");
   if (emojiEl) {
-    const emojis = { 'PHC User': '🏥', 'District Admin': '👨‍⚕️', 'State Admin': '🏛%' };
+    const emojis = { 'PHC User': '🏥', 'District Admin': '👨‍⚕️', 'State Admin': '🏛️', 'Warehouse Supervisor': '🚚' };
     emojiEl.textContent = emojis[sessionUser.role] || '👤';
   }
   
@@ -751,7 +751,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderLayout();
   await loadAndBindRealtime();
 });
-
+ 
 function normalizeSessionProfile(profile) {
   if (!profile) return null;
 
@@ -763,6 +763,8 @@ function normalizeSessionProfile(profile) {
     role = "District Admin";
   } else if (rawRole.includes("phc")) {
     role = "PHC User";
+  } else if (rawRole.includes("warehouse")) {
+    role = "Warehouse Supervisor";
   }
 
   return {
@@ -771,7 +773,8 @@ function normalizeSessionProfile(profile) {
     username: profile.username || "",
     role,
     phc_id: profile.phc_id || profile.phc_code || profile.PHC_Code || "",
-    district: profile.district || profile.District || ""
+    district: profile.district || profile.District || "",
+    warehouse_id: profile.warehouse_id || ""
   };
 }
 
