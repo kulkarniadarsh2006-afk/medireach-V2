@@ -344,6 +344,8 @@ function normalizeSessionProfile(profile, authUser) {
     role = "District Admin";
   } else if (rawRole.includes("phc")) {
     role = "PHC User";
+  } else if (rawRole.includes("warehouse")) {
+    role = "Warehouse Supervisor";
   }
 
   return {
@@ -353,7 +355,8 @@ function normalizeSessionProfile(profile, authUser) {
     username: source.username || "",
     role,
     phc_id: source.phc_id || source.phc_code || source.PHC_Code || metadata.phc_id || "",
-    district: source.district || source.District || metadata.district || ""
+    district: source.district || source.District || metadata.district || "",
+    warehouse_id: source.warehouse_id || metadata.warehouse_id || ""
   };
 }
 
