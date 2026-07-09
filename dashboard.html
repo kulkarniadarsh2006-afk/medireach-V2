@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Unified Control Panel — MediReach AI</title>
+  <meta name="description" content="AI-Powered Rural Healthcare Medicine Distribution & Decision Intelligence Platform"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="static/css/main.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ─── SIDEBAR ─── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="2"/>
+        <path d="M14 7v14M7 14h14" stroke="url(#lg1)" stroke-width="2.5" stroke-linecap="round"/>
+        <defs><linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs>
+      </svg>
+    </div>
+    <div>
+      <span class="brand-name">MediReach <span class="brand-ai">AI</span></span>
+      <span class="brand-version">v2.0 Static</span>
+    </div>
+  </div>
+
+  <!-- Persona / Assigned Role Display -->
+  <div class="persona-selector-static" style="padding: 0.75rem 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">
+    <span style="font-size: 1.1rem;" id="role-avatar-emoji">🏥</span>
+    <div style="display: flex; flex-direction: column;">
+      <span style="font-size: 0.65rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Authenticated Role</span>
+      <span style="font-size: 0.82rem; color: var(--text); font-weight: 600;" id="role-badge-text">PHC User</span>
+    </div>
+  </div>
+
+  <div class="sidebar-label">WORKFLOWS</div>
+  <nav class="sidebar-nav" id="sidebar-nav">
+    <!-- Links shown conditionally via javascript -->
+    <a href="#" class="sidebar-item active" id="nav-phc" style="display:none">
+      <span class="si-icon">🏥</span><span>PHC Local Portal</span>
+    </a>
+    <a href="#" class="sidebar-item active" id="nav-admin" style="display:none">
+      <span class="si-icon">📊</span><span>Mission Control</span>
+    </a>
+    <a href="#section-demand" class="sidebar-item" id="nav-demand" style="display:none">
+      <span class="si-icon">📈</span><span>Demand Prediction</span>
+      <span class="si-badge blue">AI</span>
+    </a>
+    <a href="#section-shortages" class="sidebar-item" id="nav-shortages" style="display:none">
+      <span class="si-icon">🚨</span><span>Shortage Warnings</span>
+      <span class="si-badge red" id="sidebar-alert-count">0</span>
+    </a>
+    <a href="#section-transfers" class="sidebar-item" id="nav-transfers" style="display:none">
+      <span class="si-icon">🔄</span><span>Stock Transfers</span>
+    </a>
+    <a href="#section-emergency" class="sidebar-item" id="nav-emergency" style="display:none">
+      <span class="si-icon">🏥</span><span>Emergency Planning</span>
+      <span class="si-badge red pulse-badge" id="sidebar-emergency-count" style="display:none">0</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-label" id="sidebar-data-label" style="margin-top:1.5rem; display:none">DATA OBJECTS</div>
+  <div class="data-objects-mini" id="sidebar-data-objects" style="display:none">
+    <button class="do-item" onclick="openDataObjectModal('phcs')"><span>🏘️</span> PHC Facilities</button>
+    <button class="do-item" onclick="openDataObjectModal('inventory')"><span>💊</span> Medicine Inventory</button>
+    <button class="do-item" onclick="openDataObjectModal('patient_statistics')"><span>📋</span> Demographics Stats</button>
+    <button class="do-item" onclick="openDataObjectModal('disease_outbreaks')"><span>🦠</span> Outbreak Reports</button>
+    <button class="do-item" onclick="openDataObjectModal('medicine_predictions')"><span>📈</span> AI Predictions</button>
+    <button class="do-item" onclick="openDataObjectModal('medicine_shortages')"><span>🚨</span> AI Shortage Alerts</button>
+    <button class="do-item" onclick="openDataObjectModal('emergency_plans')"><span>🚑</span> AI Emergency Plans</button>
+    <button class="do-item" onclick="openDataObjectModal('medicine_transfers')"><span>🔄</span> Transfer Commands</button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="live-badge">
+      <span class="live-dot"></span> LIVE DATA
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+      <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+      <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <a href="#" onclick="logoutUser(event)" class="home-btn">⬅ Logout</a>
+  </div>
+</aside>
+
+<!-- ─── MAIN CONTENT WRAPPER ─── -->
+<div class="main-with-sidebar">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-heading" id="topbar-heading">Control Panel</h1>
+      <div class="breadcrumb">
+        <a href="#">MediReach AI</a>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <span id="topbar-breadcrumb">Unified Dashboard</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-indicator">
+        <span class="live-dot"></span> LIVE
+      </div>
+      <div class="topbar-time" id="topbar-time">00:00:00</div>
+      
+      <div style="position:relative">
+        <div class="topbar-notif" onclick="toggleNotificationDropdown(event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-dot" id="alert-dot">0</span>
+        </div>
+        <!-- Notification Dropdown -->
+        <div class="notif-dropdown hidden" id="notif-dropdown">
+          <div class="notif-dropdown-header">
+            <span>Alerts &amp; Notifications</span>
+            <span class="badge badge-critical" id="notif-badge-crit">0 Critical</span>
+          </div>
+          <div class="notif-dropdown-body" id="notif-dropdown-list">
+            <div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.7rem"><span class="spinner"></span> Loading alerts...</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="user-profile-menu" style="display:flex;align-items:center;gap:.5rem;position:relative">
+        <div class="topbar-avatar" id="profile-avatar-letter" style="border:1px solid var(--border)">U</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start">
+          <span style="font-size:.78rem;font-weight:700;color:var(--text)" id="profile-username">User</span>
+          <a href="#" onclick="logoutUser(event)" style="font-size:.65rem;color:var(--red);text-decoration:none;font-weight:700">Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="page-content has-topbar">
+    
+    <!-- DYNAMIC LOADING SKELETON -->
+    <div id="dashboard-skeleton" style="display: block; padding: 2rem;">
+      <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+        <div style="flex: 1; height: 120px; background: rgba(255,255,255,0.03); border-radius: 12px; animation: pulse 1.5s infinite;"></div>
+        <div style="flex: 1; height: 120px; background: rgba(255,255,255,0.03); border-radius: 12px; animation: pulse 1.5s infinite;"></div>
+        <div style="flex: 1; height: 120px; background: rgba(255,255,255,0.03); border-radius: 12px; animation: pulse 1.5s infinite;"></div>
+        <div style="flex: 1; height: 120px; background: rgba(255,255,255,0.03); border-radius: 12px; animation: pulse 1.5s infinite;"></div>
+      </div>
+      <div style="display: flex; gap: 2rem;">
+        <div style="flex: 2; height: 400px; background: rgba(255,255,255,0.02); border-radius: 16px; animation: pulse 1.5s infinite;"></div>
+        <div style="flex: 1; height: 400px; background: rgba(255,255,255,0.02); border-radius: 16px; animation: pulse 1.5s infinite;"></div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. PHC USER INTERFACE -->
+    <!-- ========================================== -->
+    <div id="phc-user-view" style="display: none; padding: 1.5rem;">
+      <div class="card" style="padding: 1.25rem 1.5rem; background: var(--glass); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="font-size: 2.2rem; line-height: 1;">🏢</div>
+          <div>
+            <h3 style="font-size: 1rem; font-weight: 800; color: var(--text);" id="phc-banner-title">PHC Local Entry Panel</h3>
+            <p style="font-size: 0.78rem; color: var(--text2); margin-top: 0.15rem;" id="phc-banner-subtitle">Select your facility and insert data directly to Supabase.</p>
+          </div>
+        </div>
+        <div class="live-badge" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2);">
+          <span class="live-dot"></span> DIRECT SUPABASE LINK
+        </div>
+      </div>
+
+      <!-- PHC Forms Grid -->
+      <form id="phc-entry-form" onsubmit="handlePhcSubmit(event)">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+          
+          <!-- A. INVENTORY LOGGING -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>💊</span> Medicine Stock Entry</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+              <div class="form-group" style="text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Medicine Name</label>
+                <select id="form-med-name" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;">
+                  <option value="">-- Choose Medicine --</option>
+                  <option value="Paracetamol 500mg">Paracetamol 500mg</option>
+                  <option value="Chloroquine 250mg">Chloroquine 250mg</option>
+                  <option value="ORS Sachets">ORS Sachets</option>
+                  <option value="Amoxicillin 500mg">Amoxicillin 500mg</option>
+                  <option value="Metformin 500mg">Metformin 500mg</option>
+                  <option value="Amlodipine 5mg">Amlodipine 5mg</option>
+                  <option value="Vitamin D3 1000IU">Vitamin D3 1000IU</option>
+                  <option value="Albendazole 400mg">Albendazole 400mg</option>
+                  <option value="Dexamethasone 4mg">Dexamethasone 4mg</option>
+                  <option value="Artemether+Lumef.">Artemether+Lumef.</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Current Stock</label>
+                  <input type="number" id="form-med-stock" required min="0" placeholder="e.g. 500" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Unit</label>
+                  <select id="form-med-unit" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;">
+                    <option value="Tablets">Tablets</option>
+                    <option value="Sachets">Sachets</option>
+                    <option value="Capsules">Capsules</option>
+                    <option value="Vials">Vials</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Batch Number</label>
+                  <input type="text" id="form-med-batch" placeholder="e.g. B-709" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Expiry Date</label>
+                  <input type="date" id="form-med-expiry" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- B. PATIENT DEMOGRAPHICS -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>📊</span> Patient Statistics</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+              <div class="form-group" style="text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Total Patients</label>
+                <input type="number" id="form-pat-total" required min="0" placeholder="Sum of demographics" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Male Patients</label>
+                  <input type="number" id="form-pat-male" required min="0" placeholder="Male count" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Female Patients</label>
+                  <input type="number" id="form-pat-female" required min="0" placeholder="Female count" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Children (Under 12)</label>
+                  <input type="number" id="form-pat-children" required min="0" placeholder="Child count" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+                <div class="form-group" style="flex: 1; text-align: left;">
+                  <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Senior Citizens</label>
+                  <input type="number" id="form-pat-seniors" required min="0" placeholder="Seniors 60+" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- C. OUTBREAK REPORTING -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>🦠</span> Outbreak Reporting</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+              <div class="form-group" style="text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Active Outbreak Category</label>
+                <select id="form-dis-cat" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;">
+                  <option value="None">None / Normal Conditions</option>
+                  <option value="Vector-Borne">Vector-Borne (Malaria/Dengue)</option>
+                  <option value="Water-Borne">Water-Borne (Cholera/Diarrhea)</option>
+                  <option value="Infectious">Infectious (Flu/COVID-19)</option>
+                  <option value="Respiratory">Respiratory (Pneumonia)</option>
+                </select>
+              </div>
+              <div class="form-group" style="text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">New Cases Reported</label>
+                <input type="number" id="form-dis-cases" value="0" min="0" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+              </div>
+              <div class="form-group" style="text-align: left;">
+                <label style="font-size: 0.72rem; color: var(--text3); font-weight: 700; text-transform: uppercase;">Reporting Date</label>
+                <input type="date" id="form-gen-date" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; width: 100%; outline: none;" />
+                <input type="hidden" id="form-gen-phc" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM SUBMIT BUTTON -->
+        <button type="submit" class="run-btn" id="phc-submit-btn" style="width:100%; padding:1rem; border-radius:12px; font-size:1rem; font-weight:800; cursor:pointer; background:var(--primary); border:1px solid var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom: 2rem;">
+          <span>Submit Data to Supabase</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </form>
+
+      <!-- Active Local Stock Status Table -->
+      <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+        <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1.25rem;">Active Local Stock Status</h3>
+        <div class="table-container" style="overflow-x:auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                <th style="padding:0.75rem 0.5rem;">Medicine</th>
+                <th style="padding:0.75rem 0.5rem;">Batch Number</th>
+                <th style="padding:0.75rem 0.5rem; text-align:right;">Stock Level</th>
+                <th style="padding:0.75rem 0.5rem;">Expiry Date</th>
+                <th style="padding:0.75rem 0.5rem; text-align:center;">Days Left</th>
+              </tr>
+            </thead>
+            <tbody id="phc-stock-table-body">
+              <!-- Populated from live inventory -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. DISTRICT ADMIN INTERFACE -->
+    <!-- ========================================== -->
+    <div id="district-admin-view" style="display: none; padding: 1.5rem;">
+      <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-label">District PHCs</div>
+          <div class="kpi-val" id="dk-phcs">0</div>
+          <div class="kpi-sub">Supervised Facilities</div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-label">Active Outbreaks</div>
+          <div class="kpi-val" id="dk-outbreaks">0</div>
+          <div class="kpi-sub">Outbreaks in District</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-label">Active Shortages</div>
+          <div class="kpi-val" id="dk-shortages">0</div>
+          <div class="kpi-sub">Critical &amp; High Risk</div>
+        </div>
+        <div class="kpi-card kpi-emerald">
+          <div class="kpi-label">Redistributions</div>
+          <div class="kpi-val" id="dk-transfers">0</div>
+          <div class="kpi-sub">Transfer Recommendations</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; flex-wrap: wrap;" class="admin-grid-wrap">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Facility table -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">District PHC Facilities</h3>
+            <div class="table-container" style="overflow-x:auto;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.75rem 0.5rem;">PHC Code</th>
+                    <th style="padding:0.75rem 0.5rem;">Facility Name</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:right;">Population</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Outbreaks</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Shortages</th>
+                  </tr>
+                </thead>
+                <tbody id="dk-phc-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <!-- Outbreak Heatmap Panel -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 1.5rem;">
+            <h3 style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Outbreak Severity Ratio</h3>
+            <canvas id="dk-outbreak-chart" style="width:100%; height:220px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. STATE ADMIN INTERFACE -->
+    <!-- ========================================== -->
+    <div id="state-admin-view" style="display: none; padding: 1.5rem;">
+      <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-label">State Districts</div>
+          <div class="kpi-val" id="sk-districts">0</div>
+          <div class="kpi-sub">Total Jurisdictions</div>
+        </div>
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-label">State PHCs</div>
+          <div class="kpi-val" id="sk-phcs">0</div>
+          <div class="kpi-sub">Total Facilities</div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-label">Outbreak Cases</div>
+          <div class="kpi-val" id="sk-cases">0</div>
+          <div class="kpi-sub">Statewide Active Reports</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-label">Active Shortages</div>
+          <div class="kpi-val" id="sk-shortages">0</div>
+          <div class="kpi-sub">Critical Alert Level</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; flex-wrap: wrap;" class="admin-grid-wrap">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Statewide districts list -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Statewide Districts Demand Matrix</h3>
+            <div class="table-container" style="overflow-x:auto;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.75rem 0.5rem;">District</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Total PHCs</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Shortages</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Outbreaks</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:right;">14d Demand Forecast</th>
+                  </tr>
+                </thead>
+                <tbody id="sk-district-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <!-- State Outbreak Breakdown -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 1.5rem;">
+            <h3 style="font-size:1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Statewide Disease Outbreak Ratio</h3>
+            <canvas id="sk-outbreak-chart" style="width:100%; height:220px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. DEMAND FORECAST SECTION (District/State) -->
+    <!-- ========================================== -->
+    <div id="section-demand" class="card" style="display:none; padding: 1.5rem; margin: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+      <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>📈</span> AI Demand Forecasting (14-Day Projections)</h3>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+              <th style="padding:0.75rem 0.5rem;">PHC Facility</th>
+              <th style="padding:0.75rem 0.5rem;">Medicine</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Projected Demand</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Confidence Index</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Forecast Date</th>
+            </tr>
+          </thead>
+          <tbody id="demand-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 5. SHORTAGES DETECTIONS SECTION -->
+    <!-- ========================================== -->
+    <div id="section-shortages" class="card" style="display:none; padding: 1.5rem; margin: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+      <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>🚨</span> AI Shortage Detection &amp; Warnings</h3>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+              <th style="padding:0.75rem 0.5rem;">Facility</th>
+              <th style="padding:0.75rem 0.5rem;">Medicine</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Stock</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Daily Cons.</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Days Left</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Risk Level</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Est. Stockout</th>
+            </tr>
+          </thead>
+          <tbody id="shortages-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 6. STOCK TRANSFERS SECTION -->
+    <!-- ========================================== -->
+    <div id="section-transfers" class="card" style="display:none; padding: 1.5rem; margin: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+      <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>🔄</span> Medicine Redistribution Transfer Commands</h3>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+              <th style="padding:0.75rem 0.5rem;">Source PHC</th>
+              <th style="padding:0.75rem 0.5rem;">Destination PHC</th>
+              <th style="padding:0.75rem 0.5rem;">Medicine</th>
+              <th style="padding:0.75rem 0.5rem; text-align:right;">Quantity</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Priority</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Roads</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Transit</th>
+            </tr>
+          </thead>
+          <tbody id="transfers-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 7. EMERGENCY PLANS SECTION -->
+    <!-- ========================================== -->
+    <div id="section-emergency" class="card" style="display:none; padding: 1.5rem; margin: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+      <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;"><span>🚑</span> AI Active Emergency Dispatch Plans</h3>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+              <th style="padding:0.75rem 0.5rem;">Outbreak Location</th>
+              <th style="padding:0.75rem 0.5rem;">Disease / Category</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Severity</th>
+              <th style="padding:0.75rem 0.5rem;">Allocated Stocks</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Transport Vehicle</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">ETA</th>
+              <th style="padding:0.75rem 0.5rem; text-align:center;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="emergency-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- DATA OBJECT VIEW MODAL -->
+<div class="modal-overlay hidden" id="data-object-modal">
+  <div class="modal-card card animate-in" style="max-width: 900px; width: 90%; margin: 2rem auto;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span class="modal-icon" id="dom-icon">🏘️</span>
+        <div>
+          <h3 class="modal-title" id="dom-title">Data Object View</h3>
+          <span class="modal-subtitle" id="dom-subtitle">System of Record: Supabase</span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeDataObjectModal()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="modal-toolbar" style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <input type="text" class="form-control" id="dom-search" placeholder="Search records..." oninput="filterDataObjectTable()" style="flex:1" />
+        <span class="section-badge" id="dom-count">0 records</span>
+      </div>
+      
+      <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+        <table class="data-table" id="dom-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem;">
+          <thead id="dom-thead"></thead>
+          <tbody id="dom-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast hidden" id="global-toast">
+  <span class="toast-icon" id="toast-icon">✅</span>
+  <span id="toast-msg">Action completed</span>
+</div>
+
+<script src="https://cdn.supabase.com/js/supabase-js-2.4.0.min.js"></script>
+<script src="static/js/config.js"></script>
+<script src="static/js/base.js"></script>
+<script>
+// Retrieve session profile
+const sessionUser = JSON.parse(sessionStorage.getItem("medireach_session"));
+if (!sessionUser) {
+  window.location.href = "index.html";
+}
+
+// Initialize Supabase Client directly
+const supabaseClient = window.supabase
+  ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
+  : null;
+
+// Global State holding raw live database records
+let phcs = [];
+let inventory = [];
+let patientStats = [];
+let outbreaks = [];
+let predictions = [];
+let shortages = [];
+let emergencyPlans = [];
+let transfers = [];
+
+// Chart References
+let outbreakChart = null;
+
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!supabaseClient) {
+    showToast("Supabase configuration error.", "🔴");
+    return;
+  }
+
+  // Update header/role badge dynamically
+  const profileLetterEl = document.getElementById("profile-avatar-letter");
+  if (profileLetterEl) {
+    profileLetterEl.textContent = (sessionUser.email || "A")[0].toUpperCase();
+  }
+  const usernameEl = document.getElementById("profile-username");
+  if (usernameEl) {
+    usernameEl.textContent = sessionUser.email.split('@')[0];
+  }
+  const roleBadgeText = document.getElementById("role-badge-text");
+  if (roleBadgeText) {
+    roleBadgeText.textContent = sessionUser.role;
+  }
+  const emojiEl = document.getElementById("role-avatar-emoji");
+  if (emojiEl) {
+    const emojis = { 'PHC User': '🏥', 'District Admin': '👨‍⚕️', 'State Admin': '🏛%' };
+    emojiEl.textContent = emojis[sessionUser.role] || '👤';
+  }
+  
+  // Set default log date to today
+  const dateInput = document.getElementById("form-gen-date");
+  if (dateInput) {
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
+  
+  // Render layout and subscribe
+  renderLayout();
+  await loadAndBindRealtime();
+});
+
+function renderLayout() {
+  document.getElementById("dashboard-skeleton").style.display = "none";
+  
+  // Update sidebar links based on role
+  if (sessionUser.role === 'PHC User') {
+    document.getElementById("nav-phc").style.display = "flex";
+    document.getElementById("phc-user-view").style.display = "block";
+    document.getElementById("form-gen-phc").value = sessionUser.phc_id;
+    document.getElementById("phc-banner-title").textContent = `Local Portal — ${sessionUser.phc_id}`;
+    document.getElementById("phc-banner-subtitle").textContent = `Entering data directly to Supabase for district: ${sessionUser.district || 'Telangana'}`;
+  } else {
+    // Admins get everything
+    document.getElementById("nav-admin").style.display = "flex";
+    document.getElementById("nav-demand").style.display = "flex";
+    document.getElementById("nav-shortages").style.display = "flex";
+    document.getElementById("nav-transfers").style.display = "flex";
+    document.getElementById("nav-emergency").style.display = "flex";
+    
+    document.getElementById("sidebar-data-label").style.display = "block";
+    document.getElementById("sidebar-data-objects").style.display = "block";
+    
+    document.getElementById("section-demand").style.display = "block";
+    document.getElementById("section-shortages").style.display = "block";
+    document.getElementById("section-transfers").style.display = "block";
+    document.getElementById("section-emergency").style.display = "block";
+    
+    if (sessionUser.role === 'District Admin') {
+      document.getElementById("district-admin-view").style.display = "block";
+      document.getElementById("topbar-heading").textContent = `District Control Center`;
+      document.getElementById("topbar-breadcrumb").textContent = `District Admin Panel (${sessionUser.district})`;
+    } else if (sessionUser.role === 'State Admin') {
+      document.getElementById("state-admin-view").style.display = "block";
+      document.getElementById("topbar-heading").textContent = `Statewide Command Room`;
+      document.getElementById("topbar-breadcrumb").textContent = `State Admin Panel`;
+    }
+  }
+}
+
+async function loadAndBindRealtime() {
+  // Load initial data
+  await refreshDatabaseState();
+  
+  // Enable realtime subscriptions on public tables
+  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers'];
+  tables.forEach(table => {
+    supabaseClient.channel(`realtime-${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: table }, async (payload) => {
+        console.log(`Realtime DB update caught on [${table}]:`, payload);
+        await refreshDatabaseState();
+      })
+      .subscribe();
+  });
+}
+
+async function refreshDatabaseState() {
+  try {
+    // Parallel Fetching using Promise.all to minimize load times < 2s
+    const [
+      resPhcs,
+      resInventory,
+      resStats,
+      resOutbreaks,
+      resPreds,
+      resShortages,
+      resEmerg,
+      resTransfers
+    ] = await Promise.all([
+      supabaseClient.from('phcs').select('*'),
+      supabaseClient.from('inventory').select('*'),
+      supabaseClient.from('patient_statistics').select('*'),
+      supabaseClient.from('disease_outbreaks').select('*'),
+      supabaseClient.from('medicine_predictions').select('*'),
+      supabaseClient.from('medicine_shortages').select('*'),
+      supabaseClient.from('emergency_plans').select('*'),
+      supabaseClient.from('medicine_transfers').select('*')
+    ]);
+
+    phcs = resPhcs.data || [];
+    inventory = resInventory.data || [];
+    patientStats = resStats.data || [];
+    outbreaks = resOutbreaks.data || [];
+    predictions = resPreds.data || [];
+    shortages = resShortages.data || [];
+    emergencyPlans = resEmerg.data || [];
+    transfers = resTransfers.data || [];
+
+    // Trigger specific rendering based on user role
+    if (sessionUser.role === 'PHC User') {
+      renderPHCUserView();
+    } else if (sessionUser.role === 'District Admin') {
+      renderDistrictAdminView();
+      renderCoreAnalytics();
+    } else if (sessionUser.role === 'State Admin') {
+      renderStateAdminView();
+      renderCoreAnalytics();
+    }
+  } catch (err) {
+    console.error("Error refreshing database state:", err);
+  }
+}
+
+function logoutUser(e) {
+  if (e) e.preventDefault();
+  sessionStorage.clear();
+  window.location.href = "index.html";
+}
+
+// ─── PHC USER RENDERING & LOGIC ───
+function renderPHCUserView() {
+  const code = sessionUser.phc_id;
+  const localStock = inventory.filter(item => item.phc_id === code);
+  
+  const tbody = document.getElementById("phc-stock-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  if (localStock.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text3)">No stock records submitted yet.</td></tr>`;
+    return;
+  }
+
+  localStock.forEach(item => {
+    // Cross match shortage alerts
+    const alert = shortages.find(s => s.phc_id === code && s.medicine_name === item.medicine_name);
+    const daysLeft = alert ? alert.days_remaining : "—";
+    
+    let badgeClass = "badge-normal";
+    if (alert) {
+      if (alert.risk_level === "Critical") badgeClass = "badge-critical";
+      else if (alert.risk_level === "High") badgeClass = "badge-warning";
+    }
+
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid var(--border-light)";
+    tr.innerHTML = `
+      <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${item.medicine_name}</td>
+      <td style="padding:0.75rem 0.5rem; color:var(--text2)">${item.batch_number || 'N/A'}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700; color:var(--text)">${item.current_stock.toLocaleString()} <span style="font-size:0.65rem;color:var(--text3);font-weight:normal">${item.unit}</span></td>
+      <td style="padding:0.75rem 0.5rem; color:var(--text2)">${item.expiry_date || 'N/A'}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${badgeClass}">${daysLeft} days</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function handlePhcSubmit(e) {
+  e.preventDefault();
+  
+  const code = sessionUser.phc_id;
+  const submitBtn = document.getElementById("phc-submit-btn");
+  submitBtn.disabled = true;
+  submitBtn.querySelector('span').textContent = 'Submitting Data...';
+  
+  try {
+    const medName = document.getElementById("form-med-name").value;
+    const medStock = parseInt(document.getElementById("form-med-stock").value);
+    const medUnit = document.getElementById("form-med-unit").value;
+    const totalPat = parseInt(document.getElementById("form-pat-total").value);
+    const male = parseInt(document.getElementById("form-pat-male").value);
+    const female = parseInt(document.getElementById("form-pat-female").value);
+    const children = parseInt(document.getElementById("form-pat-children").value);
+    const seniors = parseInt(document.getElementById("form-pat-seniors").value);
+    const medBatch = document.getElementById("form-med-batch").value;
+    const medExpiry = document.getElementById("form-med-expiry").value;
+    const disCat = document.getElementById("form-dis-cat").value;
+    const disCases = parseInt(document.getElementById("form-dis-cases").value);
+    const logDate = document.getElementById("form-gen-date").value;
+    
+    // 1. Write inventory change directly to Supabase
+    // Check if item exists in inventory first to update or insert
+    const { data: existingInv } = await supabaseClient
+      .from('inventory')
+      .select('*')
+      .eq('phc_id', code)
+      .eq('medicine_name', medName);
+      
+    if (existingInv && existingInv.length > 0) {
+      await supabaseClient
+        .from('inventory')
+        .update({
+          current_stock: medStock,
+          batch_number: medBatch,
+          unit: medUnit,
+          expiry_date: medExpiry,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingInv[0].id);
+    } else {
+      await supabaseClient
+        .from('inventory')
+        .insert([{
+          phc_id: code,
+          medicine_name: medName,
+          current_stock: medStock,
+          batch_number: medBatch,
+          unit: medUnit,
+          expiry_date: medExpiry
+        }]);
+    }
+    
+    // 2. Insert patient demographics statistics
+    await supabaseClient
+      .from('patient_statistics')
+      .insert([{
+        phc_id: code,
+        total_patients: totalPat,
+        male_patients: male,
+        female_patients: female,
+        children: children,
+        senior_citizens: seniors,
+        recorded_date: logDate
+      }]);
+      
+    // 3. Insert outbreak disease statistics
+    if (disCases > 0) {
+      await supabaseClient
+        .from('disease_outbreaks')
+        .insert([{
+          phc_id: code,
+          disease_category: disCat,
+          cases_reported: disCases,
+          recorded_date: logDate
+        }]);
+    }
+    
+    showToast("Data submitted! Running AI optimizations...", "⚡");
+    
+    // 4. Trigger stateless AI Processing client-side
+    await runAIOptimizations();
+    
+    showToast("Realtime AI Dashboards Updated!", "🟢");
+    
+    // Reset stock fields only
+    document.getElementById("form-med-stock").value = "";
+    document.getElementById("form-med-batch").value = "";
+    document.getElementById("form-pat-total").value = "";
+    document.getElementById("form-pat-male").value = "";
+    document.getElementById("form-pat-female").value = "";
+    document.getElementById("form-pat-children").value = "";
+    document.getElementById("form-pat-seniors").value = "";
+    document.getElementById("form-dis-cases").value = "0";
+    
+    await refreshDatabaseState();
+    
+  } catch (err) {
+    console.error("Submission Error:", err);
+    showToast(err.message || "Failed submitting to Supabase.", "🔴");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.querySelector('span').textContent = 'Submit Data to Supabase';
+  }
+}
+
+// ─── DISTRICT ADMIN VIEW ───
+function renderDistrictAdminView() {
+  const dist = sessionUser.district;
+  const distPhcs = phcs.filter(p => p.District === dist);
+  const phcCodes = distPhcs.map(p => p.PHC_Code);
+  
+  // Filter records by district PHCs
+  const distInventory = inventory.filter(item => phcCodes.includes(item.phc_id));
+  const distOutbreaks = outbreaks.filter(item => phcCodes.includes(item.phc_id));
+  const distShortages = shortages.filter(item => phcCodes.includes(item.phc_id));
+  const distTransfers = transfers.filter(item => phcCodes.includes(item.source_phc_id) || phcCodes.includes(item.destination_phc_id));
+
+  // KPIs
+  document.getElementById("dk-phcs").textContent = distPhcs.length;
+  document.getElementById("dk-outbreaks").textContent = distOutbreaks.reduce((acc, curr) => acc + curr.cases_reported, 0);
+  document.getElementById("dk-shortages").textContent = distShortages.filter(s => s.risk_level === 'Critical' || s.risk_level === 'High').length;
+  document.getElementById("dk-transfers").textContent = distTransfers.length;
+
+  // Facilities Table
+  const tbody = document.getElementById("dk-phc-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  if (distPhcs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text3)">No supervised facilities in district.</td></tr>`;
+    return;
+  }
+
+  distPhcs.forEach(p => {
+    const code = p.PHC_Code;
+    const outs = distOutbreaks.filter(o => o.phc_id === code).reduce((acc, curr) => acc + curr.cases_reported, 0);
+    const shorts = distShortages.filter(s => s.phc_id === code && (s.risk_level === 'Critical' || s.risk_level === 'High')).length;
+    
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid var(--border-light)";
+    tr.innerHTML = `
+      <td style="padding:0.75rem 0.5rem; font-family:var(--font-mono); font-weight:600; color:var(--text)">${code}</td>
+      <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${p.PHC_Name}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:right; color:var(--text2)">${(p.Population_Covered || 15000).toLocaleString()}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${outs > 0 ? 'badge-critical' : 'badge-normal'}">${outs} cases</span></td>
+      <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${shorts > 0 ? 'badge-warning' : 'badge-normal'}">${shorts} alerts</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Outbreaks Chart (Donut)
+  renderDistrictOutbreakChart(distOutbreaks);
+}
+
+function renderDistrictOutbreakChart(distOutbreaks) {
+  const ctx = document.getElementById("dk-outbreak-chart");
+  if (!ctx) return;
+  
+  const counts = { 'Vector-Borne': 0, 'Water-Borne': 0, 'Infectious': 0, 'Respiratory': 0 };
+  distOutbreaks.forEach(o => {
+    if (counts[o.disease_category] !== undefined) {
+      counts[o.disease_category] += o.cases_reported;
+    }
+  });
+
+  if (outbreakChart) outbreakChart.destroy();
+  
+  outbreakChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{
+        data: Object.values(counts),
+        backgroundColor: ['#2563EB', '#06B6D4', '#EF4444', '#F59E0B'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#E2E8F0', font: { family: 'Inter', size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ─── STATE ADMIN VIEW ───
+function renderStateAdminView() {
+  // Group PHCs by district
+  const districts = [...new Set(phcs.map(p => p.District))];
+  
+  // KPIs
+  document.getElementById("sk-districts").textContent = districts.length;
+  document.getElementById("sk-phcs").textContent = phcs.length;
+  document.getElementById("sk-cases").textContent = outbreaks.reduce((acc, curr) => acc + curr.cases_reported, 0);
+  document.getElementById("sk-shortages").textContent = shortages.filter(s => s.risk_level === 'Critical').length;
+
+  // Districts Table
+  const tbody = document.getElementById("sk-district-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  districts.forEach(d => {
+    const distPhcs = phcs.filter(p => p.District === d);
+    const codes = distPhcs.map(p => p.PHC_Code);
+    const shorts = shortages.filter(s => codes.includes(s.phc_id) && s.risk_level === 'Critical').length;
+    const outs = outbreaks.filter(o => codes.includes(o.phc_id)).reduce((acc, curr) => acc + curr.cases_reported, 0);
+    const demand = predictions.filter(p => codes.includes(p.phc_id)).reduce((acc, curr) => acc + curr.predicted_demand, 0);
+
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid var(--border-light)";
+    tr.innerHTML = `
+      <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${d}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:center; color:var(--text2)">${distPhcs.length}</td>
+      <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${shorts > 0 ? 'badge-critical' : 'badge-normal'}">${shorts} alerts</span></td>
+      <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${outs > 0 ? 'badge-warning' : 'badge-normal'}">${outs} cases</span></td>
+      <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700; color:var(--text)">${demand.toLocaleString()} units</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Outbreaks Chart
+  renderStateOutbreakChart(outbreaks);
+}
+
+function renderStateOutbreakChart(stateOutbreaks) {
+  const ctx = document.getElementById("sk-outbreak-chart");
+  if (!ctx) return;
+  
+  const counts = { 'Vector-Borne': 0, 'Water-Borne': 0, 'Infectious': 0, 'Respiratory': 0 };
+  stateOutbreaks.forEach(o => {
+    if (counts[o.disease_category] !== undefined) {
+      counts[o.disease_category] += o.cases_reported;
+    }
+  });
+
+  if (outbreakChart) outbreakChart.destroy();
+  
+  outbreakChart = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{
+        data: Object.values(counts),
+        backgroundColor: ['#2563EB', '#06B6D4', '#EF4444', '#F59E0B'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#E2E8F0', font: { family: 'Inter', size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ─── CORE ANALYTICS (AI FORECASTS, SHORTAGES, REDISTRIBUTIONS, EMERGENCIES) ───
+function renderCoreAnalytics() {
+  const limitList = 25; // Limit displayed rows to keep dashboard fast
+  
+  // A. DEMAND FORECASTS TABLE
+  const demandBody = document.getElementById("demand-table-body");
+  if (demandBody) {
+    demandBody.innerHTML = "";
+    const list = predictions.slice(0, limitList);
+    if (list.length === 0) {
+      demandBody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text3)">No calculations generated. Enter PHC data.</td></tr>`;
+    } else {
+      list.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${p.phc_id}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2)">${p.medicine_name}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700; color:var(--text)">${p.predicted_demand.toLocaleString()} units</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge badge-normal">${p.confidence_pct}%</span></td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; color:var(--text3)">${(p.generated_at || '').split('T')[0]}</td>
+        `;
+        demandBody.appendChild(tr);
+      });
+    }
+  }
+
+  // B. SHORTAGES TABLE
+  const shortagesBody = document.getElementById("shortages-table-body");
+  if (shortagesBody) {
+    shortagesBody.innerHTML = "";
+    const list = shortages.slice(0, limitList);
+    
+    // Update alert badges
+    const critCount = shortages.filter(s => s.risk_level === 'Critical').length;
+    const totalCount = shortages.length;
+    
+    const sidebarAlert = document.getElementById("sidebar-alert-count");
+    if (sidebarAlert) sidebarAlert.textContent = critCount;
+    const topbarAlert = document.getElementById("alert-dot");
+    if (topbarAlert) topbarAlert.textContent = totalCount;
+    
+    const notifBadge = document.getElementById("notif-badge-crit");
+    if (notifBadge) notifBadge.textContent = `${critCount} Critical`;
+    
+    // Update notification list dropdown
+    const notifList = document.getElementById("notif-dropdown-list");
+    if (notifList) {
+      notifList.innerHTML = "";
+      const criticalShortages = shortages.filter(s => s.risk_level === 'Critical').slice(0, 5);
+      if (criticalShortages.length === 0) {
+        notifList.innerHTML = `<div style="text-align:center;padding:1.5rem;color:var(--text3)">No critical alerts active.</div>`;
+      } else {
+        criticalShortages.forEach(s => {
+          const div = document.createElement("div");
+          div.style.padding = "0.75rem 1rem";
+          div.style.borderBottom = "1px solid var(--border-light)";
+          div.style.fontSize = "0.72rem";
+          div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem">
+              <strong style="color:var(--red)">CRITICAL SHORTAGE</strong>
+              <span style="color:var(--text3)">${s.days_remaining} days left</span>
+            </div>
+            <div style="color:var(--text)">${s.phc_id} needs <span style="font-weight:700">${s.medicine_name}</span></div>
+          `;
+          notifList.appendChild(div);
+        });
+      }
+    }
+
+    if (list.length === 0) {
+      shortagesBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text3)">No shortages detected. System at 100% capacity.</td></tr>`;
+    } else {
+      list.forEach(s => {
+        let badgeClass = "badge-normal";
+        if (s.risk_level === "Critical") badgeClass = "badge-critical";
+        else if (s.risk_level === "High") badgeClass = "badge-warning";
+        
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${s.phc_id}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2)">${s.medicine_name}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700; color:var(--text)">${s.current_stock.toLocaleString()}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; color:var(--text3)">${s.daily_consumption}/day</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:700; color:var(--text)">${s.days_remaining} days</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${badgeClass}">${s.risk_level}</span></td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; color:var(--red); font-weight:600">${s.estimated_stockout}</td>
+        `;
+        shortagesBody.appendChild(tr);
+      });
+    }
+  }
+
+  // C. TRANSFERS TABLE
+  const transfersBody = document.getElementById("transfers-table-body");
+  if (transfersBody) {
+    transfersBody.innerHTML = "";
+    const list = transfers.slice(0, limitList);
+    if (list.length === 0) {
+      transfersBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text3)">No redistribution recommended. Stocks balanced.</td></tr>`;
+    } else {
+      list.forEach(t => {
+        let badgeClass = "badge-normal";
+        if (t.priority === "Critical") badgeClass = "badge-critical";
+        else if (t.priority === "High") badgeClass = "badge-warning";
+
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${t.source_phc_id}</td>
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${t.destination_phc_id}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2)">${t.medicine_name}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; font-weight:700; color:var(--primary)">${t.quantity.toLocaleString()} units</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${badgeClass}">${t.priority}</span></td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; color:var(--text3)">${t.road_condition}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:700; color:var(--text)">${t.transport_time} hrs</td>
+        `;
+        transfersBody.appendChild(tr);
+      });
+    }
+  }
+
+  // D. EMERGENCY PLANS TABLE
+  const emergencyBody = document.getElementById("emergency-table-body");
+  if (emergencyBody) {
+    emergencyBody.innerHTML = "";
+    const list = emergencyPlans.slice(0, limitList);
+    
+    const sidebarEmergCount = document.getElementById("sidebar-emergency-count");
+    if (sidebarEmergCount) {
+      if (list.length > 0) {
+        sidebarEmergCount.style.display = "inline-block";
+        sidebarEmergCount.textContent = list.length;
+      } else {
+        sidebarEmergCount.style.display = "none";
+      }
+    }
+
+    if (list.length === 0) {
+      emergencyBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text3)">No active outbreak plans. Status stable.</td></tr>`;
+    } else {
+      list.forEach(ep => {
+        let severityClass = "badge-normal";
+        if (ep.severity === "Critical") severityClass = "badge-critical";
+        else if (ep.severity === "High") severityClass = "badge-warning";
+        
+        let allocList = "";
+        try {
+          const parsed = typeof ep.critical_medicines === 'string' ? JSON.parse(ep.critical_medicines) : ep.critical_medicines;
+          allocList = parsed.map(a => `${a.medicine} (${a.quantity})`).join(", ");
+        } catch(e) {
+          allocList = String(ep.critical_medicines);
+        }
+
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${ep.phc_id}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2)">${ep.disease}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${severityClass}">${ep.severity}</span></td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2); font-size:0.72rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${allocList}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; color:var(--text3)">${ep.recommended_vehicle}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:700; color:var(--text)">${ep.response_hours} hrs</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; font-weight:700; color:var(--cyan); font-size: 0.72rem;">${ep.action}</td>
+        `;
+        emergencyBody.appendChild(tr);
+      });
+    }
+  }
+}
+
+// ─── STATELESS CLIENT-SIDE AI ENGINE (Ported from Python app.py) ───
+async function runAIOptimizations() {
+  try {
+    // 1. Fetch latest raw records from Supabase
+    const { data: rawPhcs } = await supabaseClient.from('phcs').select('*');
+    const { data: rawInventory } = await supabaseClient.from('inventory').select('*');
+    const { data: rawOutbreaks } = await supabaseClient.from('disease_outbreaks').select('*');
+    const { data: rawStats } = await supabaseClient.from('patient_statistics').select('*');
+    
+    if (!rawPhcs || rawPhcs.length === 0) return;
+    
+    // Standard medicines list
+    const medicines = [
+      "Paracetamol 500mg", "Chloroquine 250mg", "ORS Sachets", "Amoxicillin 500mg",
+      "Metformin 500mg", "Amlodipine 5mg", "Vitamin D3 1000IU", "Albendazole 400mg",
+      "Dexamethasone 4mg", "Artemether+Lumef."
+    ];
+    
+    // Per capita factors
+    const baseFactors = {
+      "Paracetamol 500mg": 0.015,
+      "Chloroquine 250mg": 0.004,
+      "ORS Sachets": 0.008,
+      "Amoxicillin 500mg": 0.007,
+      "Metformin 500mg": 0.005,
+      "Amlodipine 5mg": 0.006,
+      "Vitamin D3 1000IU": 0.003,
+      "Albendazole 400mg": 0.002,
+      "Dexamethasone 4mg": 0.002,
+      "Artemether+Lumef.": 0.003
+    };
+    
+    // Group outbreak counts by PHC and Category
+    const outbreakMap = {};
+    (rawOutbreaks || []).forEach(o => {
+      const code = o.phc_id;
+      const cat = o.disease_category;
+      const cases = o.cases_reported || 0;
+      if (!outbreakMap[code]) outbreakMap[code] = {};
+      outbreakMap[code][cat] = (outbreakMap[code][cat] || 0) + cases;
+    });
+    
+    // ── A. PREDICTIONS ──
+    const predictionsPayload = [];
+    rawPhcs.forEach(p => {
+      const code = p.PHC_Code;
+      const pop = p.Population_Covered || 15000;
+      const localOutbreaks = outbreakMap[code] || {};
+      
+      medicines.forEach(med => {
+        const baseCons = pop * (baseFactors[med] || 0.003);
+        let multiplier = 1.0;
+        
+        if (localOutbreaks["Vector-Borne"] && (med === "Chloroquine 250mg" || med === "Artemether+Lumef.")) {
+          multiplier += Math.min(2.5, localOutbreaks["Vector-Borne"] * 0.1);
+        }
+        if (localOutbreaks["Water-Borne"] && (med === "ORS Sachets" || med === "Amoxicillin 500mg")) {
+          multiplier += Math.min(3.0, localOutbreaks["Water-Borne"] * 0.15);
+        }
+        if (localOutbreaks["Infectious"] && med === "Amoxicillin 500mg") {
+          multiplier += Math.min(2.0, localOutbreaks["Infectious"] * 0.1);
+        }
+        if (localOutbreaks["Respiratory"] && (med === "Paracetamol 500mg" || med === "Dexamethasone 4mg")) {
+          multiplier += Math.min(1.8, localOutbreaks["Respiratory"] * 0.08);
+        }
+        
+        const predicted14d = Math.round(baseCons * multiplier * 14);
+        predictionsPayload.push({
+          phc_id: code,
+          medicine_name: med,
+          predicted_demand: Math.max(10, predicted14d),
+          confidence_pct: Math.round((85.0 + Math.random() * 12.0) * 10) / 10,
+          generated_at: new Date().toISOString()
+        });
+      });
+    });
+
+    // ── B. SHORTAGES ──
+    const shortagesPayload = [];
+    const invMap = {};
+    (rawInventory || []).forEach(item => {
+      const code = item.phc_id;
+      const med = item.medicine_name;
+      const stock = item.current_stock || 0;
+      if (!invMap[code]) invMap[code] = {};
+      invMap[code][med] = stock;
+    });
+
+    const predDailyMap = {};
+    predictionsPayload.forEach(pred => {
+      const code = pred.phc_id;
+      const med = pred.medicine_name;
+      const daily = pred.predicted_demand / 14.0;
+      if (!predDailyMap[code]) predDailyMap[code] = {};
+      predDailyMap[code][med] = daily;
+    });
+
+    Object.keys(invMap).forEach(code => {
+      Object.keys(invMap[code]).forEach(med => {
+        const stock = invMap[code][med];
+        let dailyCons = predDailyMap[code] ? (predDailyMap[code][med] || 10.0) : 10.0;
+        if (dailyCons <= 0) dailyCons = 1.0;
+        const daysRem = stock / dailyCons;
+        
+        let riskLevel = "Low";
+        if (daysRem <= 2) riskLevel = "Critical";
+        else if (daysRem <= 5) riskLevel = "High";
+        else if (daysRem <= 10) riskLevel = "Medium";
+        
+        const stockout = new Date();
+        stockout.setDate(stockout.getDate() + Math.round(daysRem));
+        const stockoutDate = stockout.toISOString().split('T')[0];
+        
+        shortagesPayload.push({
+          phc_id: code,
+          medicine_name: med,
+          current_stock: stock,
+          daily_consumption: Math.round(dailyCons),
+          days_remaining: Math.round(daysRem * 10) / 10,
+          risk_level: riskLevel,
+          estimated_stockout: stockoutDate,
+          generated_at: new Date().toISOString()
+        });
+      });
+    });
+
+    // ── C. EMERGENCY PLANS ──
+    const emergencyPayload = [];
+    (rawOutbreaks || []).forEach(o => {
+      const code = o.phc_id;
+      const cat = o.disease_category;
+      const cases = o.cases_reported || 0;
+      
+      if (cases >= 10) {
+        let severity = "Medium";
+        let action = "STANDBY";
+        let hours = 12;
+        if (cases >= 50) {
+          severity = "Critical";
+          action = "IMMEDIATE DISPATCH";
+          hours = 4;
+        } else if (cases >= 20) {
+          severity = "High";
+          action = "PRIORITY DISPATCH";
+          hours = 8;
+        }
+        
+        let allocs = [];
+        if (cat === "Vector-Borne") {
+          allocs = [{medicine: "Artemether+Lumef.", quantity: cases * 10}, {medicine: "Chloroquine 250mg", quantity: cases * 5}];
+        } else if (cat === "Water-Borne") {
+          allocs = [{medicine: "ORS Sachets", quantity: cases * 15}, {medicine: "Amoxicillin 500mg", quantity: cases * 8}];
+        } else {
+          allocs = [{medicine: "Paracetamol 500mg", quantity: cases * 20}];
+        }
+        
+        let vType = "Medical Truck";
+        if (cases < 25) vType = "Drone Delivery";
+        else if (severity === "Critical") vType = "Refrigerated Van";
+        
+        emergencyPayload.push({
+          phc_id: code,
+          disease: o.disease || cat,
+          severity: severity,
+          critical_medicines: allocs,
+          recommended_vehicle: vType,
+          response_hours: hours,
+          action: action,
+          generated_at: new Date().toISOString()
+        });
+      }
+    });
+
+    // ── D. TRANSFERS ──
+    const transfersPayload = [];
+    const recipients = shortagesPayload.filter(s => s.risk_level === "Critical" || s.risk_level === "High");
+    
+    const donors = [];
+    Object.keys(invMap).forEach(code => {
+      Object.keys(invMap[code]).forEach(med => {
+        const stock = invMap[code][med];
+        const dailyCons = predDailyMap[code] ? (predDailyMap[code][med] || 10.0) : 10.0;
+        const daysRem = stock / Math.max(dailyCons, 1.0);
+        if (daysRem > 20) {
+          const surplus = Math.round(stock - (dailyCons * 14));
+          if (surplus > 50) {
+            donors.push({ phc_id: code, medicine_name: med, surplus: surplus, days_remaining: daysRem });
+          }
+        }
+      });
+    });
+
+    recipients.forEach(rec => {
+      const recCode = rec.phc_id;
+      const med = rec.medicine_name;
+      
+      let bestDonor = null;
+      donors.forEach(d => {
+        if (d.medicine_name === med && d.phc_id !== recCode) {
+          if (!bestDonor || d.surplus > bestDonor.surplus) {
+            bestDonor = d;
+          }
+        }
+      });
+      
+      if (bestDonor) {
+        const recDaily = predDailyMap[recCode] ? (predDailyMap[recCode][med] || 10.0) : 10.0;
+        const qtyNeeded = Math.round(recDaily * 10 - rec.current_stock);
+        let qtyTransfer = Math.min(qtyNeeded, bestDonor.surplus);
+        qtyTransfer = Math.max(10, qtyTransfer);
+        
+        const roads = ["Good", "Fair", "Poor"];
+        transfersPayload.push({
+          source_phc_id: bestDonor.phc_id,
+          destination_phc_id: recCode,
+          medicine_name: med,
+          quantity: qtyTransfer,
+          priority: rec.risk_level,
+          road_condition: roads[Math.floor(Math.random() * roads.length)],
+          transport_time: Math.floor(Math.random() * 7) + 2,
+          generated_at: new Date().toISOString()
+        });
+        bestDonor.surplus -= qtyTransfer;
+      }
+    });
+
+    // ── E. WRITE BACK TO SUPABASE ──
+    // Truncate tables by deleting all where ID is not 0 (which matches all rows in Postgres)
+    await Promise.all([
+      supabaseClient.from('medicine_predictions').delete().neq('id', 0),
+      supabaseClient.from('medicine_shortages').delete().neq('id', 0),
+      supabaseClient.from('emergency_plans').delete().neq('id', 0),
+      supabaseClient.from('medicine_transfers').delete().neq('id', 0)
+    ]);
+
+    // Bulk inserts
+    if (predictionsPayload.length > 0) {
+      await supabaseClient.from('medicine_predictions').insert(predictionsPayload);
+    }
+    if (shortagesPayload.length > 0) {
+      await supabaseClient.from('medicine_shortages').insert(shortagesPayload);
+    }
+    if (emergencyPayload.length > 0) {
+      await supabaseClient.from('emergency_plans').insert(emergencyPayload);
+    }
+    if (transfersPayload.length > 0) {
+      await supabaseClient.from('medicine_transfers').insert(transfersPayload);
+    }
+    
+    console.log("Client-side AI computations completed successfully.");
+    
+  } catch(err) {
+    console.error("Failed running AI optimization rules:", err);
+  }
+}
+</script>
+</body>
+</html>

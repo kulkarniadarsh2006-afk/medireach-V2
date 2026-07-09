@@ -22,43 +22,6 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
-// ─── PERSONA SWITCHER ───
-function switchPersona(role) {
-  const icons = {
-    'Village Healthcare Worker': '🏥', 'Medicine Inventory Manager': '💊',
-    'Distribution Planner': '📋', 'Transportation Coordinator': '🚚',
-    'PHC Administrator': '🏛️', 'Rural Patient': '👤',
-    'District Health Officer': '👨‍⚕️', 'Data Analyst': '📊',
-    'Supply Chain Manager': '🔗', 'Emergency Coordinator': '🚨',
-    'Government Inspector': '🏛️'
-  };
-  const iconEl = document.getElementById('persona-icon');
-  const nameEl = document.getElementById('persona-name');
-  if (iconEl) iconEl.textContent = icons[role] || '👤';
-  if (nameEl) nameEl.textContent = role;
-  
-  fetch('/api/auth/switch-role', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role: role })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      showToast('Role switched to ' + role, '👤');
-      setTimeout(() => {
-        // Reload current page, updating search params
-        const url = new URL(window.location.href);
-        url.searchParams.set('persona', role);
-        window.location.href = url.toString();
-      }, 500);
-    }
-  })
-  .catch(() => {
-    showToast('Role switched (local demo) to ' + role, '👤');
-  });
-}
-
 // ─── TOAST ───
 function showToast(msg, icon) {
   const toast = document.getElementById('global-toast');
@@ -86,17 +49,6 @@ function animateCount(el, target, duration, suffix) {
   requestAnimationFrame(update);
 }
 
-// ─── LOAD ALERT COUNT ───
-fetch('/api/shortage-alerts')
-  .then(r => r.json())
-  .then(data => {
-    const el = document.getElementById('alert-count');
-    const dot = document.getElementById('alert-dot');
-    if (el) el.textContent = data.critical || 0;
-    if (dot) dot.textContent = data.total || 0;
-  })
-  .catch(() => {});
-
 // ─── CHART DEFAULTS ───
 if (typeof Chart !== 'undefined') {
   Chart.defaults.font.family = "'Inter', sans-serif";
@@ -115,28 +67,23 @@ function getChartTheme() {
   };
 }
 
-
-
 // User logout handler
-async function logoutUser(e) {
+function logoutUser(e) {
   if (e) e.preventDefault();
-  try {
-    const res = await fetch('/api/auth/logout', { method: 'POST' });
-    const d = await res.json();
-    if (d.success) {
-      showToast("Logged out successfully", "🔒");
-      setTimeout(() => window.location.reload(), 800);
-    }
-  } catch (err) {
-    console.error(err);
-  }
+  sessionStorage.clear();
+  window.location.href = "index.html";
 }
 
-// ─── DATA OBJECTS MODAL LOGIC ───
+// ─── DATA OBJECTS MODAL LOGIC (GENERIC SUPABASE VIEWER) ───
 let currentModalData = [];
 let currentModalType = '';
 
-async function openDataObjectModal(type) {
+async function openDataObjectModal(table) {
+  if (typeof supabaseClient === 'undefined' || !supabaseClient) {
+    showToast("Supabase client is not ready.", "🔴");
+    return;
+  }
+
   const modal = document.getElementById('data-object-modal');
   if (!modal) return;
   
@@ -145,121 +92,52 @@ async function openDataObjectModal(type) {
   const subtitleEl = document.getElementById('dom-subtitle');
   const tbody = document.getElementById('dom-tbody');
   const thead = document.getElementById('dom-thead');
-  const countEl = document.getElementById('dom-count');
   const searchInput = document.getElementById('dom-search');
   
   if (searchInput) searchInput.value = '';
-  currentModalType = type;
+  currentModalType = table;
   currentModalData = [];
   
   modal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text3)"><span class="spinner"></span> Fetching live data object records...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text3)"><span class="spinner"></span> Querying Supabase table...</td></tr>';
   
   const config = {
-    villages: { icon: '🏘️', title: 'Village Population Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/villages' },
-    inventory: { icon: '💊', title: 'Medicine Inventory Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/inventory-audit' },
-    consumption: { icon: '📋', title: 'Historical Consumption Records Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/demand-prediction' },
-    outbreaks: { icon: '🦠', title: 'Disease Outbreak Report Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/raw/outbreaks' },
-    weather: { icon: '🌤️', title: 'Weather Record Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/villages' },
-    transport: { icon: '🚛', title: 'Transportation Resource Data Object', subtitle: 'System of Record: Flask | Mapped from Pega Blueprint', api: '/api/raw/transport' }
+    phcs: { icon: '🏘️', title: 'PHC Facilities Table', subtitle: 'Table: public.phcs | Mapped from Supabase System of Record' },
+    inventory: { icon: '💊', title: 'Medicine Inventory Table', subtitle: 'Table: public.inventory | Mapped from Supabase System of Record' },
+    patient_statistics: { icon: '📋', title: 'Patient Demographics Statistics Table', subtitle: 'Table: public.patient_statistics | Mapped from Supabase System of Record' },
+    disease_outbreaks: { icon: '🦠', title: 'Disease Outbreak Reports Table', subtitle: 'Table: public.disease_outbreaks | Mapped from Supabase System of Record' },
+    medicine_predictions: { icon: '📈', title: 'AI Demand Predictions Table', subtitle: 'Table: public.medicine_predictions | Mapped from Supabase System of Record' },
+    medicine_shortages: { icon: '🚨', title: 'AI Shortage Alerts Table', subtitle: 'Table: public.medicine_shortages | Mapped from Supabase System of Record' },
+    emergency_plans: { icon: '🚑', title: 'AI Active Emergency Dispatch Plans', subtitle: 'Table: public.emergency_plans | Mapped from Supabase System of Record' },
+    medicine_transfers: { icon: '🔄', title: 'Medicine Redistribution transfers', subtitle: 'Table: public.medicine_transfers | Mapped from Supabase System of Record' }
   };
   
-  const current = config[type];
-  if (!current) return;
-  
-  if (iconEl) iconEl.textContent = current.icon;
-  if (titleEl) titleEl.textContent = current.title;
-  if (subtitleEl) subtitleEl.textContent = current.subtitle;
+  const current = config[table];
+  if (iconEl && current) iconEl.textContent = current.icon;
+  if (titleEl && current) titleEl.textContent = current.title;
+  if (subtitleEl && current) subtitleEl.textContent = current.subtitle;
   
   try {
-    const res = await fetch(current.api);
-    const data = await res.json();
+    const { data, error } = await supabaseClient.from(table).select('*').limit(100);
+    if (error) throw error;
     
-    if (type === 'villages') {
-      thead.innerHTML = '<tr><th>ID</th><th>Village Name</th><th>District</th><th>Population</th><th>Growth Rate</th><th>Age Group: 0-14</th><th>Age Group: 15-60</th><th>Age Group: 60+</th></tr>';
-      currentModalData = data.map(v => ({
-        id: v.id,
-        name: v.name,
-        district: v.district,
-        population: v.population.toLocaleString('en-IN'),
-        growth_rate: v.growth_rate + '%',
-        age_0_14: v.age_distribution['0-14'] + '%',
-        age_15_60: v.age_distribution['15-60'] + '%',
-        age_60: v.age_distribution['60+'] + '%'
-      }));
-    } else if (type === 'inventory') {
-      thead.innerHTML = '<tr><th>Village</th><th>Medicine</th><th>Category</th><th>Current Stock</th><th>Daily Usage</th><th>Days Remaining</th><th>Expiry Date</th><th>Status</th></tr>';
-      const list = [];
-      data.audit.forEach(v => {
-        v.items.forEach(item => {
-          list.push({
-            village: v.village,
-            medicine: item.medicine,
-            category: item.category,
-            stock: item.stock + ' units',
-            daily: item.daily_consumption + ' units',
-            days: item.days_remaining + ' days',
-            expiry: item.expiry_date,
-            status: item.status
-          });
-        });
-      });
-      currentModalData = list;
-    } else if (type === 'consumption') {
-      thead.innerHTML = '<tr><th>Village</th><th>Medicine</th><th>Category</th><th>Current Stock</th><th>Daily Usage</th><th>Predicted (7 Days)</th><th>Outbreak Factor</th><th>Weather Factor</th><th>Risk</th></tr>';
-      currentModalData = data.predictions.map(p => ({
-        village: p.village,
-        medicine: p.medicine,
-        category: p.category,
-        stock: p.current_stock + ' units',
-        daily: p.daily_consumption + ' units',
-        predicted: p.predicted_demand + ' units',
-        outbreak: p.outbreak_factor + 'x',
-        weather: p.weather_factor + 'x',
-        risk: p.risk
-      }));
-    } else if (type === 'outbreaks') {
-      thead.innerHTML = '<tr><th>ID</th><th>Village</th><th>Disease</th><th>Affected Patients</th><th>Severity</th><th>Spread Rate</th><th>Date Started</th></tr>';
-      currentModalData = data.map(o => {
-        const villageNames = { V001: 'Raichur', V002: 'Gulbarga', V003: 'Koppal', V004: 'Bijapur', V005: 'Bellary', V006: 'Yadgir', V007: 'Dharwad', V008: 'Haveri' };
-        return {
-          id: o.id,
-          village: villageNames[o.village_id] || o.village_id,
-          disease: o.disease,
-          affected: o.affected.toLocaleString('en-IN') + ' patients',
-          severity: o.severity,
-          spread: o.spread_rate + 'x/day',
-          started: o.started
-        };
-      });
-    } else if (type === 'weather') {
-      thead.innerHTML = '<tr><th>Village</th><th>Temperature</th><th>Rainfall</th><th>Humidity</th><th>Active Alerts</th><th>Road Conditions</th></tr>';
-      currentModalData = data.map(v => ({
-        village: v.name,
-        temp: v.weather.temp + '°C',
-        rainfall: v.weather.rainfall + 'mm',
-        humidity: v.weather.humidity + '%',
-        alert: v.weather.alert || 'None',
-        road: v.weather.road_condition
-      }));
-    } else if (type === 'transport') {
-      thead.innerHTML = '<tr><th>ID</th><th>Type</th><th>Capacity</th><th>Available</th><th>Location</th><th>Status</th></tr>';
-      currentModalData = data.map(t => ({
-        id: t.id,
-        type: t.type,
-        capacity: t.capacity + ' units',
-        available: t.available ? '🟢 Yes' : '🔴 No',
-        location: t.location,
-        status: t.status
-      }));
+    currentModalData = data || [];
+    
+    if (currentModalData.length > 0) {
+      const keys = Object.keys(currentModalData[0]);
+      thead.innerHTML = '<tr>' + keys.map(k => `<th>${k.replace('_', ' ').toUpperCase()}</th>`).join('') + '</tr>';
+      renderDataObjectRows(currentModalData);
+    } else {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text3)">No records found in this table.</td></tr>';
+      const countEl = document.getElementById('dom-count');
+      if (countEl) countEl.textContent = '0 records';
     }
-    
-    renderDataObjectRows(currentModalData);
   } catch (err) {
-    console.error(err);
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--red)">Failed to fetch live data object. Please ensure Flask app is running.</td></tr>';
+    console.error("Supabase DBO Fetch Error:", err);
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--red)">Failed to fetch live data object records from Supabase.</td></tr>';
   }
 }
 
@@ -281,17 +159,24 @@ function renderDataObjectRows(rows) {
     return;
   }
   
+  const keys = Object.keys(rows[0]);
+  
   tbody.innerHTML = rows.map(row => {
-    return `<tr>${Object.keys(row).map(key => {
+    return `<tr>${keys.map(key => {
       let val = row[key];
       let style = '';
+      
+      if (typeof val === 'object' && val !== null) {
+        val = JSON.stringify(val);
+      }
+      
       if (val === 'Critical' || val === '🔴 No') {
         style = 'color:var(--red);font-weight:700';
         val = `<span class="badge badge-critical">${val}</span>`;
       } else if (val === 'High' || val === 'Poor' || val === 'Flood Risk' || val === 'Heat Wave' || val === 'Heavy Rain') {
         style = 'color:var(--amber);font-weight:700';
         val = `<span class="badge badge-high">${val}</span>`;
-      } else if (val === 'Medium' || val === 'Fair' || val === 'Flask Local') {
+      } else if (val === 'Medium' || val === 'Fair') {
         style = 'color:var(--primary-l);font-weight:700';
         val = `<span class="badge badge-medium">${val}</span>`;
       } else if (val === 'Low' || val === 'Safe' || val === '🟢 Yes' || val === 'Good' || val === 'None') {
@@ -303,7 +188,7 @@ function renderDataObjectRows(rows) {
         style = 'font-family:"JetBrains Mono",monospace;color:var(--text3)';
       }
       
-      return `<td style="${style}">${val}</td>`;
+      return `<td style="${style}">${val === null ? '—' : val}</td>`;
     }).join('')}</tr>`;
   }).join('');
 }
@@ -349,76 +234,36 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Fetch alerts to populate notifications
-async function loadNotifications() {
+// Fetch alerts to populate notifications (directly from Supabase state)
+function loadNotifications() {
   const listEl = document.getElementById('notif-dropdown-list');
   const badgeCrit = document.getElementById('notif-badge-crit');
   if (!listEl) return;
   
-  try {
-    const res = await fetch('/api/shortage-alerts');
-    const data = await res.json();
-    const alerts = data.alerts || [];
-    
-    if (badgeCrit) badgeCrit.textContent = `${data.critical || 0} Critical`;
-    
-    if (alerts.length === 0) {
-      listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:.75rem">No active alerts. All stock safe!</div>';
-      return;
-    }
-    
-    listEl.innerHTML = alerts.slice(0, 4).map(alert => {
-      let icon = '⚠️';
-      if (alert.risk_level === 'Critical') icon = '🚨';
-      else if (alert.outbreak_linked) icon = '🦠';
-      
-      return `
-        <a href="/shortage" class="notif-item">
-          <span class="notif-item-icon">${icon}</span>
-          <div class="notif-item-content">
-            <span class="notif-item-title">${alert.village}: ${alert.medicine}</span>
-            <span class="notif-item-desc">Stock remaining: ${alert.current_stock} units. ${alert.action_required}</span>
-            <span class="notif-item-time">Estimated stockout: ${alert.estimated_stockout}</span>
-          </div>
-        </a>
-      `;
-    }).join('');
-  } catch(e) {
-    console.error(e);
-    listEl.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--red);font-size:.72rem">Failed to load alerts.</div>';
+  // Use global shortages array populated in dashboard
+  const alerts = shortages || [];
+  const critCount = shortages.filter(s => s.risk_level === 'Critical').length;
+  
+  if (badgeCrit) badgeCrit.textContent = `${critCount} Critical`;
+  
+  if (alerts.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:.75rem">No active alerts. All stock safe!</div>';
+    return;
   }
+  
+  listEl.innerHTML = alerts.slice(0, 5).map(alert => {
+    let icon = '⚠️';
+    if (alert.risk_level === 'Critical') icon = '🚨';
+    
+    return `
+      <div class="notif-item">
+        <span class="notif-item-icon">${icon}</span>
+        <div class="notif-item-content">
+          <span class="notif-item-title">${alert.phc_id}: ${alert.medicine_name}</span>
+          <span class="notif-item-desc">Stock remaining: ${alert.current_stock}. Daily consumption: ${alert.daily_consumption}.</span>
+          <span class="notif-item-time">Estimated stockout: ${alert.estimated_stockout} (${alert.days_remaining} days left)</span>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
-
-// ─── WEBSOCKET REAL-TIME LIVE UPDATES ───
-(function() {
-  if (typeof io === 'undefined') return;
-
-  const socket = io();
-
-  socket.on('connect', () => {
-    console.log('⚡ Connected to MediReach Live Data Feed via WebSocket.');
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Disconnected from WebSocket.');
-  });
-
-  socket.on('data_updated', (data) => {
-    console.log('🔔 Live Update Received:', data);
-    
-    const icon = data.icon || '🔔';
-    const message = data.message || 'New live update received.';
-    
-    if (typeof showToast === 'function') {
-      showToast(`${message} (Refreshing in 3s...)`, icon);
-    }
-    
-    // Smoothly reload the current page state to display live backend updates
-    setTimeout(() => {
-      window.location.reload();
-    }, 3000);
-  });
-})();
-
-
-

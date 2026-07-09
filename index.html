@@ -1,8 +1,61 @@
-{% extends "base.html" %}
-{% set show_sidebar = false %}
-{% block title %}Sign In — MediReach AI{% endblock %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In — MediReach AI</title>
+  <meta name="description" content="AI-Powered Rural Healthcare Medicine Distribution & Decision Intelligence Platform"/>
+  <meta name="keywords" content="healthcare, rural healthcare, AI medicine distribution, shortage prediction, medical supply chain, WHO compliance"/>
+  <meta name="author" content="MediReach AI Team"/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="static/css/main.css"/>
+  
+  <style>
+    /* Glowing Orbs styling inside login page */
+    .login-wrapper {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      z-index: 1;
+      overflow: hidden;
+    }
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: .15;
+    }
+    .orb-primary {
+      width: 400px;
+      height: 400px;
+      background: var(--primary);
+      top: -100px;
+      left: -100px;
+      animation: float 20s infinite alternate;
+    }
+    .orb-cyan {
+      width: 300px;
+      height: 300px;
+      background: var(--cyan);
+      bottom: -50px;
+      right: -50px;
+      animation: float 15s infinite alternate-reverse;
+    }
+    @keyframes float {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(50px, 30px) scale(1.1); }
+    }
+  </style>
+</head>
+<body>
 
-{% block content %}
 <!-- NEURAL CANVAS BACKGROUND -->
 <canvas id="neural-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.4"></canvas>
 
@@ -31,7 +84,7 @@
     </div>
 
     <!-- GLASS LOGIN/SIGNUP CARD -->
-    <div class="card login-card">
+    <div class="card login-card" style="width: 100%; max-width: 440px; padding: 2.5rem 2rem; border-radius: 20px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.4);">
       
       <!-- TABS -->
       <div class="portal-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); padding: 0.3rem; border-radius: 10px; border: 1px solid var(--border);">
@@ -43,199 +96,106 @@
       <div id="auth-alert" class="alert alert-critical" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.78rem; margin-bottom: 1rem; font-weight: 600;"></div>
 
       <!-- SCREEN 1: SIGN IN -->
-      <form id="form-signin" onsubmit="handleSignIn(event)" class="auth-screen">
-        <h3 class="auth-title">Welcome Back</h3>
-        <p class="auth-desc">Sign in with your email to access your role-based dashboard.</p>
+      <form id="form-signin" onsubmit="handleSignIn(event)" class="auth-screen" style="display: flex; flex-direction: column;">
+        <h3 class="auth-title" style="margin-bottom: 0.25rem;">Welcome Back</h3>
+        <p class="auth-desc" style="font-size: 0.8rem; color: var(--text3); margin-bottom: 1.5rem;">Sign in with your email to access your role-based dashboard.</p>
         
         <div class="form-group" style="text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Email Address</label>
-          <input type="email" class="form-control" id="signin-email" placeholder="name@facility.gov.in" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+          <label class="form-label">Email Address</label>
+          <input type="email" id="signin-email" class="form-control" placeholder="name@facility.org" required style="width: 100%;" />
         </div>
-
+        
         <div class="form-group" style="text-align:left; margin-bottom:1.5rem">
-          <label class="form-label" style="font-weight:700">Password</label>
-          <input type="password" class="form-control" id="signin-password" placeholder="••••••••" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+          <label class="form-label">Password</label>
+          <input type="password" id="signin-password" class="form-control" placeholder="••••••••" required style="width: 100%;" />
         </div>
-
-        <button type="submit" class="run-btn" id="signin-btn">
+        
+        <button type="submit" class="run-btn" id="signin-btn" style="width: 100%; padding: 0.75rem; border-radius: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; background: var(--primary); border: 1px solid var(--primary); color: #fff;">
           <span>Sign In to Portal</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </form>
 
       <!-- SCREEN 2: SIGN UP -->
-      <form id="form-signup" onsubmit="handleSignUp(event)" class="auth-screen" style="display:none">
-        <h3 class="auth-title">Create Account</h3>
-        <p class="auth-desc">Register a new profile linked directly to Supabase authentication.</p>
+      <form id="form-signup" onsubmit="handleSignUp(event)" class="auth-screen" style="display:none; flex-direction: column;">
+        <h3 class="auth-title" style="margin-bottom: 0.25rem;">Create Account</h3>
+        <p class="auth-desc" style="font-size: 0.8rem; color: var(--text3); margin-bottom: 1.5rem;">Register a new profile linked directly to Supabase authentication.</p>
         
         <div class="form-group" style="text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Email Address</label>
-          <input type="email" class="form-control" id="signup-email" placeholder="user@medireach.ai" required style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+          <label class="form-label">Email Address</label>
+          <input type="email" id="signup-email" class="form-control" placeholder="name@facility.org" required style="width: 100%;" />
         </div>
-
+        
         <div class="form-group" style="text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Password</label>
-          <input type="password" class="form-control" id="signup-password" placeholder="Min 6 characters" required minlength="6" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;" />
+          <label class="form-label">Password</label>
+          <input type="password" id="signup-password" class="form-control" placeholder="Min. 6 characters" required style="width: 100%;" />
         </div>
-
-        <!-- ROLE SELECTOR -->
+        
         <div class="form-group" style="text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Access Role</label>
-          <select class="form-control" id="signup-role" onchange="handleSignUpRoleChange()" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
-            <option value="PHC User" selected>PHC Supervisor</option>
+          <label class="form-label">Assigned Role</label>
+          <select id="signup-role" class="form-control" onchange="handleSignUpRoleChange()" style="width: 100%; background: var(--card); color: var(--text);">
+            <option value="PHC User">PHC User</option>
             <option value="District Admin">District Admin</option>
             <option value="State Admin">State Admin</option>
           </select>
         </div>
-
-        <!-- DYNAMIC PHC SELECTOR -->
+        
         <div class="form-group" id="signup-phc-group" style="text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Select Facility (PHC)</label>
-          <select class="form-control" id="signup-phc" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
-            <option value="">-- Choose PHC --</option>
-            <!-- Loaded dynamically from Supabase on load -->
+          <label class="form-label">Assigned PHC Facility</label>
+          <select id="signup-phc" class="form-control" style="width: 100%; background: var(--card); color: var(--text);">
+            <!-- Populated dynamically from Supabase -->
           </select>
         </div>
-
-        <!-- DYNAMIC DISTRICT SELECTOR -->
-        <div class="form-group" id="signup-district-group" style="display:none; text-align:left; margin-bottom:1rem">
-          <label class="form-label" style="font-weight:700">Select District</label>
-          <select class="form-control" id="signup-district" style="background: var(--glass); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; width: 100%; outline: none;">
-            <option value="">-- Choose District --</option>
-            <option value="Sangareddy">Sangareddy</option>
-            <option value="Warangal">Warangal</option>
-            <option value="Nalgonda">Nalgonda</option>
-            <option value="Mahabubnagar">Mahabubnagar</option>
+        
+        <div class="form-group" id="signup-district-group" style="text-align:left; margin-bottom:1.5rem; display:none">
+          <label class="form-label">Assigned District Jurisdict</label>
+          <select id="signup-district" class="form-control" style="width: 100%; background: var(--card); color: var(--text);">
+            <option value="Adilabad">Adilabad</option>
+            <option value="Bhadradri Kothagudem">Bhadradri Kothagudem</option>
+            <option value="Jagtial">Jagtial</option>
+            <option value="Jangaon">Jangaon</option>
+            <option value="Jayashankar Bhupalpally">Jayashankar Bhupalpally</option>
+            <option value="Jogulamba Gadwal">Jogulamba Gadwal</option>
+            <option value="Kamareddy">Kamareddy</option>
             <option value="Karimnagar">Karimnagar</option>
             <option value="Khammam">Khammam</option>
-            <option value="Nizamabad">Nizamabad</option>
+            <option value="Kumuram Bheem">Kumuram Bheem</option>
+            <option value="Mahabubabad">Mahabubabad</option>
+            <option value="Mahabubnagar">Mahabubnagar</option>
+            <option value="Mancherial">Mancherial</option>
             <option value="Medak">Medak</option>
-            <option value="Adilabad">Adilabad</option>
-            <option value="Rangareddy">Rangareddy</option>
+            <option value="Medchal-Malkajgiri">Medchal-Malkajgiri</option>
+            <option value="Mulugu">Mulugu</option>
+            <option value="Nagarkurnool">Nagarkurnool</option>
+            <option value="Nalgonda">Nalgonda</option>
+            <option value="Narayanpet">Narayanpet</option>
+            <option value="Nirmal">Nirmal</option>
+            <option value="Nizamabad">Nizamabad</option>
+            <option value="Peddapalli">Peddapalli</option>
+            <option value="Rajanna Sircilla">Rajanna Sircilla</option>
+            <option value="Ranga Reddy">Ranga Reddy</option>
+            <option value="Sangareddy">Sangareddy</option>
+            <option value="Siddipet">Siddipet</option>
+            <option value="Suryapet">Suryapet</option>
+            <option value="Vikarabad">Vikarabad</option>
+            <option value="Wanaparthy">Wanaparthy</option>
+            <option value="Warangal Rural">Warangal Rural</option>
+            <option value="Warangal Urban">Warangal Urban</option>
+            <option value="Yadadri Bhuvanagiri">Yadadri Bhuvanagiri</option>
           </select>
         </div>
-
-        <button type="submit" class="run-btn" id="signup-btn" style="background: var(--cyan); border-color: var(--cyan); color: #000;">
+        
+        <button type="submit" class="run-btn" id="signup-btn" style="width: 100%; padding: 0.75rem; border-radius: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; background: var(--cyan); border: 1px solid var(--cyan); color: #000;">
           <span>Register New Account</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
         </button>
       </form>
-
-    </div>
-
-    <!-- DEMO ACCOUNTS BADGE -->
-    <div class="demo-badge-card animate-in" style="animation-delay:.2s; display:flex; flex-direction:column; gap:0.4rem;">
-      <div style="display:flex; align-items:center; gap:0.5rem;">
-        <span style="font-size:1.1rem">💡</span>
-        <strong>Supabase Realtime Accounts Active</strong>
-      </div>
-      <div style="font-size:0.72rem; line-height:1.4; opacity:0.85;">
-        You can create credentials instantly using the <strong>Sign Up</strong> tab to register role profiles directly into Supabase.
-      </div>
     </div>
   </div>
 </div>
 
-<style>
-.login-wrapper {
-  position: relative;
-  min-height: calc(100vh - 120px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  z-index: 1;
-}
-.login-container {
-  width: 100%;
-  max-width: 440px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-.login-brand {
-  text-align: center;
-}
-.login-brand h2 {
-  font-size: 1.625rem;
-  font-weight: 900;
-  letter-spacing: -.02em;
-  margin-top: .625rem;
-}
-.brand-tag {
-  font-size: .78rem;
-  color: var(--text2);
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: .08em;
-  margin-top: .15rem;
-}
-.login-card {
-  width: 100%;
-  padding: 2.5rem 2rem;
-  border-radius: 20px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
-}
-.auth-screen {
-  display: flex;
-  flex-direction: column;
-}
-.auth-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--text);
-  margin-bottom: .375rem;
-}
-.auth-desc {
-  font-size: .8rem;
-  color: var(--text2);
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-}
-.demo-badge-card {
-  border: 1px solid rgba(6,182,212,.3);
-  background: rgba(6,182,212,.06);
-  backdrop-filter: blur(12px);
-  text-align: left;
-  padding: 1rem 1.25rem;
-  border-radius: 12px;
-  color: var(--text2);
-  width: 100%;
-}
-.demo-badge-card strong {
-  color: var(--cyan);
-}
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: -1;
-  opacity: .15;
-}
-.orb-primary {
-  width: 300px;
-  height: 300px;
-  background: var(--primary);
-  top: 10%;
-  left: 20%;
-}
-.orb-cyan {
-  width: 250px;
-  height: 250px;
-  background: var(--cyan);
-  bottom: 10%;
-  right: 20%;
-}
-</style>
-
-{% endblock %}
-
-{% block extra_scripts %}
-<!-- Load Supabase Client library -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="static/js/config.js"></script>
 <script>
 // Neural Canvas Animation
 (function(){
@@ -269,9 +229,8 @@
 
 // Initialize Supabase Client directly on frontend
 const supabaseClient = window.supabase
-  ? window.supabase.createClient("{{ SUPABASE_URL }}", "{{ SUPABASE_ANON_KEY }}")
+  ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
   : null;
-
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (!supabaseClient) {
@@ -283,7 +242,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const { data: phcs, error } = await supabaseClient
       .from('phcs')
-
       .select('PHC_Code, PHC_Name, District')
       .order('PHC_Name');
       
@@ -334,7 +292,8 @@ function showAlert(msg, isCrit = false) {
 }
 
 function hideAlert() {
-  document.getElementById("auth-alert").style.display = "none";
+  const alertEl = document.getElementById("auth-alert");
+  alertEl.style.display = "none";
 }
 
 // Authentication Handlers
@@ -361,30 +320,21 @@ async function handleSignIn(e) {
     // 2. Fetch User Profile
     const { data: profile, error: profileError } = await supabaseClient
       .from('users')
-
       .select('*')
       .eq('id', authData.user.id)
-      .single();
+      .maybeSingle();
       
     if (profileError || !profile) {
-      // Fallback or warning if user profile wasn't written to users table
       throw new Error(profileError?.message || "User profile not found in database.");
     }
     
-    // Sync session with the backend Flask session
-    await fetch('/api/auth/login-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile: profile })
-    });
-
     // Store profile in browser session and redirect to dashboard
     sessionStorage.setItem("medireach_session", JSON.stringify(profile));
     sessionStorage.setItem("supabase_uid", authData.user.id);
     
     showAlert("Login successful! Loading dashboard...", false);
     setTimeout(() => {
-      window.location.href = "/dashboard";
+      window.location.href = "dashboard.html";
     }, 1000);
     
   } catch (err) {
@@ -419,44 +369,56 @@ async function handleSignUp(e) {
   btn.querySelector('span').textContent = 'Creating Account...';
   
   try {
+    // Check if duplicate profile exists in users table first
+    const { data: dupCheck } = await supabaseClient
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+      
+    if (dupCheck) {
+      throw new Error("This email address is already registered.");
+    }
+
     // 1. Register Auth User in Supabase Auth
     const { data: authData, error: authError } = await supabaseClient.auth.signUp({
       email: email,
       password: password
     });
-
     
     if (authError) throw authError;
     if (!authData.user) throw new Error("Account creation pending or restricted.");
     
-    // 2. Create profile row in public.users table via stateless backend API
-    const response = await fetch('/api/auth/register-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: authData.user.id,
-        email: email,
-        role: role,
-        phc_id: role === 'PHC User' ? phcId : null,
-        district: role === 'District Admin' ? district : null
-      })
-    });
-    const regRes = await response.json();
-    if (!regRes.success) throw new Error(regRes.error || "Profile registration failed.");
+    // 2. Create profile row in public.users table directly from client
+    const userRow = {
+      id: authData.user.id,
+      email: email,
+      role: role,
+      phc_id: role === 'PHC User' ? phcId : null,
+      district: role === 'District Admin' ? district : null
+    };
+    
+    const { error: regError } = await supabaseClient
+      .from('users')
+      .insert([userRow]);
+      
+    if (regError) throw regError;
     
     showAlert("Account successfully registered! Switch to Sign In to log in.", false);
     btn.disabled = false;
     btn.querySelector('span').textContent = 'Register New Account';
-    switchAuthTab('signin');
-    document.getElementById("signin-email").value = email;
-    document.getElementById("signin-password").value = password;
+    
+    setTimeout(() => {
+      switchAuthTab('signin');
+    }, 2000);
     
   } catch (err) {
     console.error("Sign Up Error:", err);
-    showAlert(err.message || "Registration failed. Try a different email.", true);
+    showAlert(err.message || "Failed to create account. Please try again.", true);
     btn.disabled = false;
     btn.querySelector('span').textContent = 'Register New Account';
   }
 }
 </script>
-{% endblock %}
+</body>
+</html>
