@@ -262,6 +262,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
   font-family:'Inter',sans-serif;transition:all .2s;outline:none;
 }
 .form-control:focus{border-color:var(--primary);background:rgba(37,99,235,.08);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+select {
+  color-scheme: dark;
+}
+[data-theme="light"] select {
+  color-scheme: light;
+}
 select option {
   background-color: #1e293b !important;
   color: #f8fafc !important;
