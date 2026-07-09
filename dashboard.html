@@ -713,9 +713,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  if (!sessionUser) {
-    sessionUser = await restoreSessionUser();
-  }
+  // Always restore session user from Supabase to prevent browser cache mismatches
+  sessionUser = await restoreSessionUser();
 
   if (!sessionUser) {
     window.location.href = "index.html";
