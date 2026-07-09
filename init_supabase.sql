@@ -38,6 +38,27 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create trigger function to automatically create profile on sign up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, role, phc_id, district)
+  VALUES (
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'role', 'PHC User'),
+    new.raw_user_meta_data->>'phc_id',
+    new.raw_user_meta_data->>'district'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Bind trigger to auth.users table
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 -- 3. Re-create/Ensure Inventory Table exists
 -- We use a simplified inventory table referencing medicine name, batch, stock, unit, and expiry.
 CREATE TABLE IF NOT EXISTS inventory (
