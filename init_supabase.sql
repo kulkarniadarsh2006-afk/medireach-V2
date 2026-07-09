@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS medicine_transfers CASCADE;
 DROP TABLE IF EXISTS medicine_requests CASCADE;
 DROP TABLE IF EXISTS shortage_alerts CASCADE;
 DROP TABLE IF EXISTS logistics_shipments CASCADE;
+DROP TABLE IF EXISTS warehouse_inventory CASCADE;
 DROP TABLE IF EXISTS warehouses CASCADE;
 DROP TABLE IF EXISTS medicines CASCADE;
 
@@ -33,6 +34,16 @@ CREATE TABLE IF NOT EXISTS warehouses (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     location VARCHAR(255)
+);
+
+-- 2.5 Create Warehouse Inventory Table
+CREATE TABLE IF NOT EXISTS warehouse_inventory (
+    id SERIAL PRIMARY KEY,
+    warehouse_id VARCHAR(50) NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    current_stock INTEGER NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
+    unit VARCHAR(50) DEFAULT 'Units',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. Create Users Profile Table (linked to Supabase Auth.Users)
@@ -192,6 +203,7 @@ ALTER TABLE emergency_plans DISABLE ROW LEVEL SECURITY;
 ALTER TABLE medicine_transfers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE warehouses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE logistics_shipments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE warehouse_inventory DISABLE ROW LEVEL SECURITY;
 
 -- Enable Realtime subscriptions on crucial tables (inventory, statistics, and calculations)
 ALTER PUBLICATION supabase_realtime ADD TABLE inventory;
@@ -202,6 +214,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE medicine_shortages;
 ALTER PUBLICATION supabase_realtime ADD TABLE medicine_transfers;
 ALTER PUBLICATION supabase_realtime ADD TABLE emergency_plans;
 ALTER PUBLICATION supabase_realtime ADD TABLE logistics_shipments;
+ALTER PUBLICATION supabase_realtime ADD TABLE warehouse_inventory;
 
 -- Grant full read/write privileges on all tables, sequences, and functions to anon and authenticated roles
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;

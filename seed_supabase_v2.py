@@ -76,6 +76,7 @@ def main():
 
     # Truncate existing seed tables to guarantee clean state
     delete_data("logistics_shipments")
+    delete_data("warehouse_inventory")
     delete_data("warehouses")
     delete_data("inventory")
     delete_data("disease_outbreaks")
@@ -93,6 +94,20 @@ def main():
     ]
     print("Seeding warehouses...")
     post_data("warehouses", warehouses_data)
+
+    # 1.5 Seed Warehouse Inventory
+    print("Seeding warehouse inventory...")
+    wh_inventory_rows = []
+    for wh in warehouses_data:
+        for med in medicines:
+            stock = random.randint(10000, 75000)
+            wh_inventory_rows.append({
+                "warehouse_id": wh["id"],
+                "medicine_name": med["name"],
+                "current_stock": stock,
+                "unit": med["unit"]
+            })
+    post_data("warehouse_inventory", wh_inventory_rows)
 
     # 2. Seed Inventory for all 120 PHCs (20 medicines each)
     print("Generating inventory seeds...")
