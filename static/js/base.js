@@ -111,7 +111,9 @@ async function openDataObjectModal(table) {
     medicine_predictions: { icon: '📈', title: 'AI Demand Predictions Table', subtitle: 'Table: public.medicine_predictions | Mapped from Supabase System of Record' },
     medicine_shortages: { icon: '🚨', title: 'AI Shortage Alerts Table', subtitle: 'Table: public.medicine_shortages | Mapped from Supabase System of Record' },
     emergency_plans: { icon: '🚑', title: 'AI Active Emergency Dispatch Plans', subtitle: 'Table: public.emergency_plans | Mapped from Supabase System of Record' },
-    medicine_transfers: { icon: '🔄', title: 'Medicine Redistribution transfers', subtitle: 'Table: public.medicine_transfers | Mapped from Supabase System of Record' }
+    medicine_transfers: { icon: '🔄', title: 'Medicine Redistribution transfers', subtitle: 'Table: public.medicine_transfers | Mapped from Supabase System of Record' },
+    warehouses: { icon: '🏬', title: 'Warehouse Depots Table', subtitle: 'Table: public.warehouses | Mapped from Supabase System of Record' },
+    logistics_shipments: { icon: '🚛', title: 'Logistics Shipments Table', subtitle: 'Table: public.logistics_shipments | Mapped from Supabase System of Record' }
   };
   
   const current = config[table];

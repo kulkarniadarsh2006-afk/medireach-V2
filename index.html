@@ -137,12 +137,20 @@
             <option value="PHC User">PHC User</option>
             <option value="District Admin">District Admin</option>
             <option value="State Admin">State Admin</option>
+            <option value="Warehouse Supervisor">Warehouse Supervisor</option>
           </select>
         </div>
         
         <div class="form-group" id="signup-phc-group" style="text-align:left; margin-bottom:1rem">
           <label class="form-label">Assigned PHC Facility</label>
           <select id="signup-phc" class="form-control" style="width: 100%; background: var(--card); color: var(--text);">
+            <!-- Populated dynamically from Supabase -->
+          </select>
+        </div>
+
+        <div class="form-group" id="signup-warehouse-group" style="text-align:left; margin-bottom:1rem; display:none">
+          <label class="form-label">Assigned Warehouse Depot</label>
+          <select id="signup-warehouse" class="form-control" style="width: 100%; background: var(--card); color: var(--text);">
             <!-- Populated dynamically from Supabase -->
           </select>
         </div>
@@ -264,6 +272,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (err) {
     console.error("Error loading PHCs:", err);
   }
+
+  // Load warehouses dropdown list directly from Supabase
+  try {
+    const { data: whs, error } = await supabaseClient
+      .from('warehouses')
+      .select('id, name')
+      .order('name');
+      
+    if (error) throw error;
+    
+    const selectEl = document.getElementById("signup-warehouse");
+    if (whs && selectEl) {
+      whs.forEach(w => {
+        const opt = document.createElement("option");
+        opt.value = w.id;
+        opt.textContent = `${w.name} (${w.id})`;
+        selectEl.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.error("Error loading Warehouses:", err);
+  }
 });
 
 // UI Toggles
@@ -287,6 +317,7 @@ function handleSignUpRoleChange() {
   const role = document.getElementById("signup-role").value;
   document.getElementById("signup-phc-group").style.display = role === 'PHC User' ? 'block' : 'none';
   document.getElementById("signup-district-group").style.display = role === 'District Admin' ? 'block' : 'none';
+  document.getElementById("signup-warehouse-group").style.display = role === 'Warehouse Supervisor' ? 'block' : 'none';
 }
 
 function showAlert(msg, isCrit = false) {
@@ -394,6 +425,7 @@ async function handleSignUp(e) {
   const role = document.getElementById("signup-role").value;
   const phcId = document.getElementById("signup-phc").value;
   const district = document.getElementById("signup-district").value;
+  const warehouseId = document.getElementById("signup-warehouse").value;
   const btn = document.getElementById("signup-btn");
   
   if (role === 'PHC User' && !phcId) {
@@ -402,6 +434,10 @@ async function handleSignUp(e) {
   }
   if (role === 'District Admin' && !district) {
     showAlert("Please select a district.", true);
+    return;
+  }
+  if (role === 'Warehouse Supervisor' && !warehouseId) {
+    showAlert("Please select a warehouse depot.", true);
     return;
   }
   
@@ -428,7 +464,8 @@ async function handleSignUp(e) {
         data: {
           role: role,
           phc_id: role === 'PHC User' ? phcId : null,
-          district: role === 'District Admin' ? district : null
+          district: role === 'District Admin' ? district : null,
+          warehouse_id: role === 'Warehouse Supervisor' ? warehouseId : null
         }
       }
     });
@@ -446,7 +483,8 @@ async function handleSignUp(e) {
           email: email,
           role: role,
           phc_id: role === 'PHC User' ? phcId : null,
-          district: role === 'District Admin' ? district : null
+          district: role === 'District Admin' ? district : null,
+          warehouse_id: role === 'Warehouse Supervisor' ? warehouseId : null
         }, { onConflict: 'id' });
     } catch (profileErr) {
       console.warn("Profile fallback insert skipped:", profileErr);

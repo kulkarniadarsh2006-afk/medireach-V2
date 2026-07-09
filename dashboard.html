@@ -44,6 +44,9 @@
     <a href="#" class="sidebar-item active" id="nav-phc" style="display:none">
       <span class="si-icon">🏥</span><span>PHC Local Portal</span>
     </a>
+    <a href="#" class="sidebar-item active" id="nav-warehouse" style="display:none">
+      <span class="si-icon">🚚</span><span>Warehouse Portal</span>
+    </a>
     <a href="#" class="sidebar-item active" id="nav-admin" style="display:none">
       <span class="si-icon">📊</span><span>Mission Control</span>
     </a>
@@ -190,6 +193,16 @@
                   <option value="Albendazole 400mg">Albendazole 400mg</option>
                   <option value="Dexamethasone 4mg">Dexamethasone 4mg</option>
                   <option value="Artemether+Lumef.">Artemether+Lumef.</option>
+                  <option value="Azithromycin 500mg">Azithromycin 500mg</option>
+                  <option value="Atorvastatin 10mg">Atorvastatin 10mg</option>
+                  <option value="Ibuprofen 400mg">Ibuprofen 400mg</option>
+                  <option value="Cetirizine 10mg">Cetirizine 10mg</option>
+                  <option value="Ranitidine 150mg">Ranitidine 150mg</option>
+                  <option value="Salbutamol Inhaler">Salbutamol Inhaler</option>
+                  <option value="Metronidazole 400mg">Metronidazole 400mg</option>
+                  <option value="Iron + Folic Acid">Iron + Folic Acid</option>
+                  <option value="Ciprofloxacin 500mg">Ciprofloxacin 500mg</option>
+                  <option value="Levothyroxine 50mcg">Levothyroxine 50mcg</option>
                 </select>
               </div>
               <div style="display: flex; gap: 0.75rem;">
@@ -422,6 +435,110 @@
             <canvas id="sk-outbreak-chart" style="width:100%; height:220px;"></canvas>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3.5 WAREHOUSE SUPERVISOR INTERFACE -->
+    <!-- ========================================== -->
+    <div id="warehouse-supervisor-view" style="display: none; padding: 1.5rem;">
+      <!-- KPI Stats Row -->
+      <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-label">Total Fleet Size</div>
+          <div class="kpi-val" id="wk-fleet">5</div>
+          <div class="kpi-sub">Monitored Fleet Assets</div>
+        </div>
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-label">En Route Shipments</div>
+          <div class="kpi-val" id="wk-enroute">0</div>
+          <div class="kpi-sub">Active Dispatches</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-label">Scheduled Deliveries</div>
+          <div class="kpi-val" id="wk-scheduled">0</div>
+          <div class="kpi-sub">Pending Warehouse Releases</div>
+        </div>
+        <div class="kpi-card kpi-emerald">
+          <div class="kpi-label">Completed Today</div>
+          <div class="kpi-val" id="wk-completed">0</div>
+          <div class="kpi-sub">Delivered Shipments</div>
+        </div>
+      </div>
+
+      <!-- Main Logistics Grid -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; flex-wrap: wrap;" class="admin-grid-wrap">
+        
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Active Shipments Table -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Active Dispatches &amp; Deliveries</h3>
+            <div class="table-container" style="overflow-x:auto;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.75rem 0.5rem;">Shipment ID</th>
+                    <th style="padding:0.75rem 0.5rem;">Recipient PHC</th>
+                    <th style="padding:0.75rem 0.5rem;">Medicines</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:right;">Quantity</th>
+                    <th style="padding:0.75rem 0.5rem;">Vehicle (ID)</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Priority</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="wk-dispatches-body">
+                  <!-- Populated from live logistics_shipments -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Vehicle Fleet Status Table -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Fleet Tracking Resource Status</h3>
+            <div class="table-container" style="overflow-x:auto;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.75rem 0.5rem;">Vehicle ID</th>
+                    <th style="padding:0.75rem 0.5rem;">Asset Type</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:right;">Payload Capacity</th>
+                    <th style="padding:0.75rem 0.5rem;">Current Depot Location</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Operational Status</th>
+                  </tr>
+                </thead>
+                <tbody id="wk-fleet-body">
+                  <!-- Populated client-side -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Logistics Schedules Panel -->
+          <div class="card" style="padding: 1.25rem 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; gap: 1rem;">
+            <h4 style="font-size:0.95rem; font-weight:800; color:var(--text);">Logistics Schedules</h4>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; max-height:450px; overflow-y:auto;" id="wk-schedules-list">
+              <!-- Populated client-side -->
+            </div>
+          </div>
+
+          <!-- Logistics Event Stream -->
+          <div class="card" style="padding: 1.25rem 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+              <h4 style="font-size:0.95rem; font-weight:800; color:var(--text);">Logistics Event Stream</h4>
+              <span class="live-dot" style="background:#10b981; animation: pulse 1.5s infinite"></span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; max-height:250px; overflow-y:auto;" id="wk-logs-stream">
+              <div style="padding: 0.5rem; background: rgba(255,255,255,0.01); border: 1px solid var(--border); border-radius: 6px; font-size: 0.72rem;">
+                <div style="color:var(--text2);">System dispatch initialization completed. All fleet systems online.</div>
+                <div style="font-size:0.625rem; color:var(--text3); text-align:right;">Just Now</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -698,6 +815,13 @@ function renderLayout() {
     document.getElementById("form-gen-phc").value = sessionUser.phc_id;
     document.getElementById("phc-banner-title").textContent = `Local Portal — ${sessionUser.phc_id}`;
     document.getElementById("phc-banner-subtitle").textContent = `Entering data directly to Supabase for district: ${sessionUser.district || 'Telangana'}`;
+  } else if (sessionUser.role === 'Warehouse Supervisor') {
+    document.getElementById("nav-warehouse").style.display = "flex";
+    document.getElementById("warehouse-supervisor-view").style.display = "block";
+    document.getElementById("sidebar-data-label").style.display = "block";
+    document.getElementById("sidebar-data-objects").style.display = "block";
+    document.getElementById("topbar-heading").textContent = `Warehouse Depot`;
+    document.getElementById("topbar-breadcrumb").textContent = `Warehouse Supervisor Panel (${sessionUser.warehouse_id || 'Depot'})`;
   } else {
     // Admins get everything
     document.getElementById("nav-admin").style.display = "flex";
@@ -731,7 +855,7 @@ async function loadAndBindRealtime() {
   await refreshDatabaseState();
   
   // Enable realtime subscriptions on public tables
-  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers'];
+  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers', 'warehouses', 'logistics_shipments'];
   tables.forEach(table => {
     supabaseClient.channel(`realtime-${table}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: table }, async (payload) => {
@@ -753,7 +877,9 @@ async function refreshDatabaseState() {
       resPreds,
       resShortages,
       resEmerg,
-      resTransfers
+      resTransfers,
+      resWarehouses,
+      resShipments
     ] = await Promise.all([
       supabaseClient.from('phcs').select('*'),
       supabaseClient.from('inventory').select('*'),
@@ -762,7 +888,9 @@ async function refreshDatabaseState() {
       supabaseClient.from('medicine_predictions').select('*'),
       supabaseClient.from('medicine_shortages').select('*'),
       supabaseClient.from('emergency_plans').select('*'),
-      supabaseClient.from('medicine_transfers').select('*')
+      supabaseClient.from('medicine_transfers').select('*'),
+      supabaseClient.from('warehouses').select('*'),
+      supabaseClient.from('logistics_shipments').select('*')
     ]);
 
     phcs = resPhcs.data || [];
@@ -773,6 +901,8 @@ async function refreshDatabaseState() {
     shortages = resShortages.data || [];
     emergencyPlans = resEmerg.data || [];
     transfers = resTransfers.data || [];
+    const warehouses = resWarehouses.data || [];
+    const shipments = resShipments.data || [];
 
     // Trigger specific rendering based on user role
     if (sessionUser.role === 'PHC User') {
@@ -783,6 +913,8 @@ async function refreshDatabaseState() {
     } else if (sessionUser.role === 'State Admin') {
       renderStateAdminView();
       renderCoreAnalytics();
+    } else if (sessionUser.role === 'Warehouse Supervisor') {
+      renderWarehouseSupervisorView(warehouses, shipments);
     }
   } catch (err) {
     console.error("Error refreshing database state:", err);
@@ -793,6 +925,128 @@ function logoutUser(e) {
   if (e) e.preventDefault();
   sessionStorage.clear();
   window.location.href = "index.html";
+}
+
+// ─── WAREHOUSE SUPERVISOR RENDERING & LOGIC ───
+function renderWarehouseSupervisorView(warehouses, shipments) {
+  const userWhId = sessionUser.warehouse_id;
+  // Filter shipments for this warehouse (or show all if not assigned)
+  const localShipments = userWhId ? shipments.filter(s => s.source_warehouse_id === userWhId) : shipments;
+
+  const enRoute = localShipments.filter(s => s.status === 'En Route');
+  const scheduled = localShipments.filter(s => s.status === 'Scheduled');
+  const completed = localShipments.filter(s => s.status === 'Delivered');
+
+  // Update KPIs
+  document.getElementById("wk-enroute").textContent = enRoute.length;
+  document.getElementById("wk-scheduled").textContent = scheduled.length;
+  document.getElementById("wk-completed").textContent = completed.length;
+
+  // Render dispatches table
+  const tbody = document.getElementById("wk-dispatches-body");
+  if (tbody) {
+    tbody.innerHTML = "";
+    if (localShipments.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text3)">No dispatches active or scheduled.</td></tr>`;
+    } else {
+      localShipments.forEach(s => {
+        let pBadge = "badge-normal";
+        if (s.priority === "Critical") pBadge = "badge-critical";
+        else if (s.priority === "High") pBadge = "badge-warning";
+
+        let sBadge = "badge-normal";
+        if (s.status === "En Route") sBadge = "badge-blue";
+        else if (s.status === "Delivered") sBadge = "badge-success";
+
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--cyan)">#${s.id}</td>
+          <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${s.destination_phc_code}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text2)">${s.medicine_name}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:right; font-family:'JetBrains Mono',monospace">${s.quantity.toLocaleString()}</td>
+          <td style="padding:0.75rem 0.5rem;">${s.vehicle_type} <span style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--text3)">(${s.vehicle_id})</span></td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${pBadge}">${s.priority}</span></td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${sBadge}">${s.status}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // Render fleet status
+  const fleetList = [
+    { id: "VHL-DRN-10", type: "Drone Delivery", capacity: 50, location: "Warangal Depot", status: "Idle" },
+    { id: "VHL-VAN-08", type: "Refrigerated Van", capacity: 450, location: "Nalgonda Depot", status: "Idle" },
+    { id: "VHL-TRK-03", type: "Medical Truck", capacity: 1200, location: "Mahabubnagar Depot", status: "Idle" },
+    { id: "VHL-DRN-15", type: "Drone Delivery", capacity: 50, location: "Warangal Depot", status: "Idle" },
+    { id: "VHL-TRK-07", type: "Medical Truck", capacity: 1200, location: "Nalgonda Depot", status: "Idle" }
+  ];
+
+  // Update statuses based on active shipments
+  fleetList.forEach(v => {
+    const active = localShipments.find(s => s.vehicle_id === v.id && s.status === 'En Route');
+    if (active) {
+      v.status = "En Route";
+    }
+  });
+
+  const fleetBody = document.getElementById("wk-fleet-body");
+  if (fleetBody) {
+    fleetBody.innerHTML = "";
+    fleetList.forEach(v => {
+      let sBadge = "badge-success";
+      if (v.status === "En Route") sBadge = "badge-blue";
+      
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--border-light)";
+      tr.innerHTML = `
+        <td style="padding:0.75rem 0.5rem; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--cyan)">${v.id}</td>
+        <td style="padding:0.75rem 0.5rem; font-weight:700; color:var(--text)">${v.type}</td>
+        <td style="padding:0.75rem 0.5rem; text-align:right; font-family:'JetBrains Mono',monospace">${v.capacity} kg</td>
+        <td style="padding:0.75rem 0.5rem; color:var(--text2)">${v.location}</td>
+        <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${sBadge}">${v.status === 'Idle' ? 'Idle (Ready)' : v.status}</span></td>
+      `;
+      fleetBody.appendChild(tr);
+    });
+  }
+
+  // Render logistics schedules sidebar
+  const schedList = document.getElementById("wk-schedules-list");
+  if (schedList) {
+    schedList.innerHTML = "";
+    const pending = localShipments.filter(s => s.status !== 'Delivered');
+    if (pending.length === 0) {
+      schedList.innerHTML = `<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:0.75rem">No upcoming dispatches.</div>`;
+    } else {
+      pending.forEach(s => {
+        const div = document.createElement("div");
+        div.style.padding = "0.6rem 0.75rem";
+        div.style.background = "rgba(255,255,255,0.02)";
+        div.style.border = "1px solid var(--border)";
+        div.style.borderRadius = "8px";
+        div.style.fontSize = "0.75rem";
+        
+        let sBadge = "badge-warning";
+        if (s.status === "En Route") sBadge = "badge-blue";
+
+        div.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+            <span style="font-weight:700; color:var(--text);">Destination: ${s.destination_phc_code}</span>
+            <span class="badge ${sBadge}" style="font-size:0.55rem; padding:0.1rem 0.3rem;">${s.status}</span>
+          </div>
+          <div style="color:var(--text2); line-height:1.4; font-size:0.7rem;">
+            Medicines: ${s.medicine_name} (${s.quantity} units)
+          </div>
+          <div style="font-size:0.65rem; color:var(--text3); margin-top:0.25rem; display:flex; justify-content:space-between;">
+            <span>Route: ${s.route}</span>
+            <span>ETA: ${(s.delivery_time || '').split('T')[0]}</span>
+          </div>
+        `;
+        schedList.appendChild(div);
+      });
+    }
+  }
 }
 
 // ─── PHC USER RENDERING & LOGIC ───
@@ -1288,7 +1542,9 @@ async function runAIOptimizations() {
     const medicines = [
       "Paracetamol 500mg", "Chloroquine 250mg", "ORS Sachets", "Amoxicillin 500mg",
       "Metformin 500mg", "Amlodipine 5mg", "Vitamin D3 1000IU", "Albendazole 400mg",
-      "Dexamethasone 4mg", "Artemether+Lumef."
+      "Dexamethasone 4mg", "Artemether+Lumef.", "Azithromycin 500mg", "Atorvastatin 10mg",
+      "Ibuprofen 400mg", "Cetirizine 10mg", "Ranitidine 150mg", "Salbutamol Inhaler",
+      "Metronidazole 400mg", "Iron + Folic Acid", "Ciprofloxacin 500mg", "Levothyroxine 50mcg"
     ];
     
     // Per capita factors
@@ -1302,7 +1558,17 @@ async function runAIOptimizations() {
       "Vitamin D3 1000IU": 0.003,
       "Albendazole 400mg": 0.002,
       "Dexamethasone 4mg": 0.002,
-      "Artemether+Lumef.": 0.003
+      "Artemether+Lumef.": 0.003,
+      "Azithromycin 500mg": 0.005,
+      "Atorvastatin 10mg": 0.004,
+      "Ibuprofen 400mg": 0.008,
+      "Cetirizine 10mg": 0.003,
+      "Ranitidine 150mg": 0.006,
+      "Salbutamol Inhaler": 0.002,
+      "Metronidazole 400mg": 0.004,
+      "Iron + Folic Acid": 0.010,
+      "Ciprofloxacin 500mg": 0.005,
+      "Levothyroxine 50mcg": 0.003
     };
     
     // Group outbreak counts by PHC and Category

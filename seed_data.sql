@@ -9,7 +9,17 @@ INSERT INTO medicines (id, name, category, unit, critical) VALUES
 ('M007', 'Vitamin D3 1000IU', 'Supplement', 'Capsules', false),
 ('M008', 'Albendazole 400mg', 'Anthelmintic', 'Tablets', false),
 ('M009', 'Dexamethasone 4mg', 'Corticosteroid', 'Tablets', true),
-('M010', 'Artemether+Lumef.', 'Antimalarial', 'Tablets', true)
+('M010', 'Artemether+Lumef.', 'Antimalarial', 'Tablets', true),
+('M011', 'Azithromycin 500mg', 'Antibiotic', 'Tablets', true),
+('M012', 'Atorvastatin 10mg', 'Lipid-lowering', 'Tablets', false),
+('M013', 'Ibuprofen 400mg', 'Analgesic', 'Tablets', false),
+('M014', 'Cetirizine 10mg', 'Antihistamine', 'Tablets', false),
+('M015', 'Ranitidine 150mg', 'Antacid', 'Tablets', false),
+('M016', 'Salbutamol Inhaler', 'Bronchodilator', 'Inhalers', true),
+('M017', 'Metronidazole 400mg', 'Antiamoebic', 'Tablets', false),
+('M018', 'Iron + Folic Acid', 'Supplement', 'Tablets', false),
+('M019', 'Ciprofloxacin 500mg', 'Antibiotic', 'Tablets', false),
+('M020', 'Levothyroxine 50mcg', 'Thyroid hormone', 'Tablets', false)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, unit = EXCLUDED.unit, critical = EXCLUDED.critical;
 
 -- Seeding Warehouses

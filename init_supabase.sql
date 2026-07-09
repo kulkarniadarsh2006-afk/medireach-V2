@@ -28,13 +28,21 @@ CREATE TABLE IF NOT EXISTS phcs (
     "Status" VARCHAR(50) DEFAULT 'Active'
 );
 
--- 2. Create Users Profile Table (linked to Supabase Auth.Users)
+-- 2. Create Warehouses Table
+CREATE TABLE IF NOT EXISTS warehouses (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255)
+);
+
+-- 3. Create Users Profile Table (linked to Supabase Auth.Users)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('PHC User', 'District Admin', 'State Admin')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('PHC User', 'District Admin', 'State Admin', 'Warehouse Supervisor')),
     phc_id VARCHAR(50) REFERENCES phcs("PHC_Code") ON DELETE SET NULL,
     district VARCHAR(100),
+    warehouse_id VARCHAR(50) REFERENCES warehouses(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,13 +50,14 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, role, phc_id, district)
+  INSERT INTO public.users (id, email, role, phc_id, district, warehouse_id)
   VALUES (
     new.id,
     new.email,
     COALESCE(new.raw_user_meta_data->>'role', 'PHC User'),
     new.raw_user_meta_data->>'phc_id',
-    new.raw_user_meta_data->>'district'
+    new.raw_user_meta_data->>'district',
+    new.raw_user_meta_data->>'warehouse_id'
   );
   RETURN NEW;
 END;
@@ -58,6 +67,23 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 4. Create Logistics Shipments Table
+CREATE TABLE IF NOT EXISTS logistics_shipments (
+    id VARCHAR(50) PRIMARY KEY,
+    vehicle_type VARCHAR(100) NOT NULL,
+    vehicle_id VARCHAR(50) NOT NULL,
+    route VARCHAR(255) NOT NULL,
+    source_warehouse_id VARCHAR(50) REFERENCES warehouses(id) ON DELETE CASCADE,
+    destination_phc_code VARCHAR(50) REFERENCES phcs("PHC_Code") ON DELETE CASCADE,
+    medicine_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    delivery_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    priority VARCHAR(50) DEFAULT 'Medium',
+    road_condition VARCHAR(50) DEFAULT 'Good',
+    estimated_hours INTEGER DEFAULT 4,
+    status VARCHAR(50) DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'En Route', 'Delivered', 'Cancelled'))
+);
 
 -- 3. Re-create/Ensure Inventory Table exists
 -- We use a simplified inventory table referencing medicine name, batch, stock, unit, and expiry.
@@ -164,6 +190,8 @@ ALTER TABLE medicine_predictions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE medicine_shortages DISABLE ROW LEVEL SECURITY;
 ALTER TABLE emergency_plans DISABLE ROW LEVEL SECURITY;
 ALTER TABLE medicine_transfers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE warehouses DISABLE ROW LEVEL SECURITY;
+ALTER TABLE logistics_shipments DISABLE ROW LEVEL SECURITY;
 
 -- Enable Realtime subscriptions on crucial tables (inventory, statistics, and calculations)
 ALTER PUBLICATION supabase_realtime ADD TABLE inventory;
@@ -173,3 +201,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE medicine_predictions;
 ALTER PUBLICATION supabase_realtime ADD TABLE medicine_shortages;
 ALTER PUBLICATION supabase_realtime ADD TABLE medicine_transfers;
 ALTER PUBLICATION supabase_realtime ADD TABLE emergency_plans;
+ALTER PUBLICATION supabase_realtime ADD TABLE logistics_shipments;
+
+-- Grant full read/write privileges on all tables, sequences, and functions to anon and authenticated roles
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, postgres, service_role;
