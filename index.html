@@ -296,6 +296,31 @@ function hideAlert() {
   alertEl.style.display = "none";
 }
 
+function normalizeSessionProfile(profile, authUser) {
+  if (!profile && !authUser) return null;
+  const source = profile || {};
+  const metadata = authUser?.user_metadata || {};
+  const rawRole = String(source.role || metadata.role || "").trim().toLowerCase();
+  let role = "PHC User";
+  if (rawRole.includes("state")) {
+    role = "State Admin";
+  } else if (rawRole.includes("district")) {
+    role = "District Admin";
+  } else if (rawRole.includes("phc")) {
+    role = "PHC User";
+  }
+
+  return {
+    ...source,
+    id: source.id || authUser?.id,
+    email: source.email || authUser?.email || "",
+    username: source.username || "",
+    role,
+    phc_id: source.phc_id || source.phc_code || source.PHC_Code || metadata.phc_id || "",
+    district: source.district || source.District || metadata.district || ""
+  };
+}
+
 // Authentication Handlers
 async function handleSignIn(e) {
   e.preventDefault();
@@ -318,18 +343,28 @@ async function handleSignIn(e) {
     if (authError) throw authError;
     
     // 2. Fetch User Profile
-    const { data: profile, error: profileError } = await supabaseClient
+    let { data: profile, error: profileError } = await supabaseClient
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
       .maybeSingle();
+
+    if (profileError || !profile) {
+      const fallback = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+      profile = fallback.data;
+      profileError = fallback.error;
+    }
       
     if (profileError || !profile) {
-      throw new Error(profileError?.message || "User profile not found in database.");
+      profile = normalizeSessionProfile(null, authData.user);
     }
     
     // Store profile in browser session and redirect to dashboard
-    sessionStorage.setItem("medireach_session", JSON.stringify(profile));
+    sessionStorage.setItem("medireach_session", JSON.stringify(normalizeSessionProfile(profile, authData.user)));
     sessionStorage.setItem("supabase_uid", authData.user.id);
     
     showAlert("Login successful! Loading dashboard...", false);
@@ -395,6 +430,22 @@ async function handleSignUp(e) {
     
     if (authError) throw authError;
     if (!authData.user) throw new Error("Account creation pending or restricted.");
+
+    // The database trigger normally creates this row. This fallback keeps login
+    // working if the trigger was not installed in Supabase.
+    try {
+      await supabaseClient
+        .from('users')
+        .upsert({
+          id: authData.user.id,
+          email: email,
+          role: role,
+          phc_id: role === 'PHC User' ? phcId : null,
+          district: role === 'District Admin' ? district : null
+        }, { onConflict: 'id' });
+    } catch (profileErr) {
+      console.warn("Profile fallback insert skipped:", profileErr);
+    }
     
     showAlert("Account successfully registered! Switch to Sign In to log in.", false);
     btn.disabled = false;

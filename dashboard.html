@@ -554,20 +554,23 @@
   <span id="toast-msg">Action completed</span>
 </div>
 
-<script src="https://cdn.supabase.com/js/supabase-js-2.4.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="static/js/config.js"></script>
 <script src="static/js/base.js"></script>
 <script>
-// Retrieve session profile
-const sessionUser = JSON.parse(sessionStorage.getItem("medireach_session"));
-if (!sessionUser) {
-  window.location.href = "index.html";
-}
-
 // Initialize Supabase Client directly
 const supabaseClient = window.supabase
   ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
   : null;
+
+// Retrieve session profile. If browser session storage is missing, rebuild it
+// from the active Supabase auth session so the dashboard does not render blank.
+let sessionUser = null;
+try {
+  sessionUser = normalizeSessionProfile(JSON.parse(sessionStorage.getItem("medireach_session") || "null"));
+} catch (err) {
+  console.warn("Stored MediReach session was invalid. Rebuilding from Supabase auth.", err);
+}
 
 // Global State holding raw live database records
 let phcs = [];
@@ -588,6 +591,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  if (!sessionUser) {
+    sessionUser = await restoreSessionUser();
+  }
+
+  if (!sessionUser) {
+    window.location.href = "index.html";
+    return;
+  }
+
   // Update header/role badge dynamically
   const profileLetterEl = document.getElementById("profile-avatar-letter");
   if (profileLetterEl) {
@@ -595,7 +607,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const usernameEl = document.getElementById("profile-username");
   if (usernameEl) {
-    usernameEl.textContent = sessionUser.email.split('@')[0];
+    usernameEl.textContent = (sessionUser.email || sessionUser.username || "User").split('@')[0];
   }
   const roleBadgeText = document.getElementById("role-badge-text");
   if (roleBadgeText) {
@@ -617,6 +629,59 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderLayout();
   await loadAndBindRealtime();
 });
+
+function normalizeSessionProfile(profile) {
+  if (!profile) return null;
+
+  const rawRole = String(profile.role || profile.user_role || "").trim().toLowerCase();
+  let role = "PHC User";
+  if (rawRole.includes("state")) {
+    role = "State Admin";
+  } else if (rawRole.includes("district")) {
+    role = "District Admin";
+  } else if (rawRole.includes("phc")) {
+    role = "PHC User";
+  }
+
+  return {
+    ...profile,
+    email: profile.email || profile.user_email || "",
+    username: profile.username || "",
+    role,
+    phc_id: profile.phc_id || profile.phc_code || profile.PHC_Code || "",
+    district: profile.district || profile.District || ""
+  };
+}
+
+async function restoreSessionUser() {
+  try {
+    const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !authData?.user) return null;
+
+    const { data: profile } = await supabaseClient
+      .from("users")
+      .select("*")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    const rebuiltProfile = normalizeSessionProfile(profile || {
+      id: authData.user.id,
+      email: authData.user.email,
+      role: authData.user.user_metadata?.role,
+      phc_id: authData.user.user_metadata?.phc_id,
+      district: authData.user.user_metadata?.district
+    });
+
+    if (rebuiltProfile) {
+      sessionStorage.setItem("medireach_session", JSON.stringify(rebuiltProfile));
+    }
+
+    return rebuiltProfile;
+  } catch (err) {
+    console.error("Could not restore login session:", err);
+    return null;
+  }
+}
 
 function renderLayout() {
   document.getElementById("dashboard-skeleton").style.display = "none";
