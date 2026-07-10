@@ -10,6 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="static/css/main.css?v=2.2"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Leaflet Map library for interactive logistics tracking -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -46,6 +49,9 @@
     </a>
     <a href="#" class="sidebar-item active" id="nav-warehouse" style="display:none">
       <span class="si-icon">🚚</span><span>Warehouse Portal</span>
+    </a>
+    <a href="#" class="sidebar-item active" id="nav-logistics" style="display:none">
+      <span class="si-icon">🚚</span><span>Logistics Center</span>
     </a>
     <a href="#" class="sidebar-item active" id="nav-admin" style="display:none">
       <span class="si-icon">📊</span><span>Mission Control</span>
@@ -324,6 +330,18 @@
     <!-- 2. DISTRICT ADMIN INTERFACE -->
     <!-- ========================================== -->
     <div id="district-admin-view" style="display: none; padding: 1.5rem;">
+      <!-- Logistics Portal Redirect banner -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.2); padding: 0.8rem 1.2rem; border-radius: 12px; margin-bottom: 1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.2rem;">🚛</span>
+          <div style="text-align:left;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--text);">Logistics &amp; Fleet Management Portal</div>
+            <div style="font-size:0.7rem; color:var(--text2);">Manage statewide driver directory, vehicle health diagnostics, and optimized routing paths.</div>
+          </div>
+        </div>
+        <button class="btn btn-blue" onclick="jumpToLogisticsPortal()" style="font-size:0.75rem; padding:0.4rem 0.8rem;">Access Logistics Center</button>
+      </div>
+
       <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
         <div class="kpi-card kpi-blue">
           <div class="kpi-label">District PHCs</div>
@@ -383,6 +401,18 @@
     <!-- 3. STATE ADMIN INTERFACE -->
     <!-- ========================================== -->
     <div id="state-admin-view" style="display: none; padding: 1.5rem;">
+      <!-- Logistics Portal Redirect banner -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.2); padding: 0.8rem 1.2rem; border-radius: 12px; margin-bottom: 1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.2rem;">🚛</span>
+          <div style="text-align:left;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--text);">Logistics &amp; Fleet Management Portal</div>
+            <div style="font-size:0.7rem; color:var(--text2);">Manage statewide driver directory, vehicle health diagnostics, and optimized routing paths.</div>
+          </div>
+        </div>
+        <button class="btn btn-blue" onclick="jumpToLogisticsPortal()" style="font-size:0.75rem; padding:0.4rem 0.8rem;">Access Logistics Center</button>
+      </div>
+
       <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
         <div class="kpi-card kpi-blue">
           <div class="kpi-label">State Districts</div>
@@ -556,6 +586,141 @@
                 <div style="font-size:0.625rem; color:var(--text3); text-align:right;">Just Now</div>
               </div>
             </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3.8 LOGISTICS HEAD PORTAL INTERFACE -->
+    <!-- ========================================== -->
+    <div id="logistics-head-view" style="display: none; padding: 1.5rem;">
+      
+      <!-- Top Overview Stats -->
+      <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="kpi-card kpi-blue">
+          <div class="kpi-label">Active Trucks &amp; Drones</div>
+          <div class="kpi-val" id="lg-active-fleet">0</div>
+          <div class="kpi-sub">En Route Assets</div>
+        </div>
+        <div class="kpi-card kpi-indigo">
+          <div class="kpi-label">Total Active Drivers</div>
+          <div class="kpi-val" id="lg-active-drivers">0</div>
+          <div class="kpi-sub">Drivers On-Duty</div>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <div class="kpi-label">Average Fuel/Battery</div>
+          <div class="kpi-val" id="lg-avg-fuel">92%</div>
+          <div class="kpi-sub">Fleet Energy Level</div>
+        </div>
+        <div class="kpi-card kpi-emerald">
+          <div class="kpi-label">Operational Status</div>
+          <div class="kpi-val" style="color: var(--emerald)">Optimal</div>
+          <div class="kpi-sub">System-wide Health Status</div>
+        </div>
+      </div>
+
+      <!-- Main Maps & Diagnostics Grid -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;" class="admin-grid-wrap">
+        
+        <!-- Left Side: Interactive Map & Health Grid -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Interactive Map -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+              <h3 style="font-size:1.1rem; font-weight:800; color:var(--text);">Statewide Logistics Live Tracking (India)</h3>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <label class="form-label" style="margin:0; font-size:0.75rem;">Simulate Live GPS Tracking</label>
+                <input type="checkbox" id="gps-simulation-toggle" onchange="toggleGPSSimulation()" style="cursor:pointer; width:18px; height:18px;" />
+              </div>
+            </div>
+            <!-- Leaflet Map Container -->
+            <div id="logistics-map" style="width: 100%; height: 450px; border-radius: 12px; border: 1px solid var(--border); background:#0f172a; z-index: 1;"></div>
+          </div>
+
+          <!-- Vehicle Diagnostic Health Grid -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Vehicle Health Diagnostic Monitoring</h3>
+            <div class="table-container" style="overflow-x:auto;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.75rem 0.5rem;">Vehicle ID</th>
+                    <th style="padding:0.75rem 0.5rem;">Type</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Fuel / Charge</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Battery Health</th>
+                    <th style="padding:0.75rem 0.5rem; text-align:center;">Engine Health</th>
+                    <th style="padding:0.75rem 0.5rem;">Assigned Route</th>
+                  </tr>
+                </thead>
+                <tbody id="lg-vehicle-health-body">
+                  <!-- Populated client-side -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Driver Contacts & Route Modifier -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Driver Contacts Directory -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">On-Duty Drivers Contacts</h3>
+            <div class="table-container" style="overflow-x:auto; max-height: 250px;">
+              <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem;">
+                <thead>
+                  <tr style="border-bottom: 2px solid var(--border); color: var(--text2);">
+                    <th style="padding:0.5rem;">Driver Name</th>
+                    <th style="padding:0.5rem;">License</th>
+                    <th style="padding:0.5rem; text-align:center;">Status</th>
+                    <th style="padding:0.5rem; text-align:center;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="lg-drivers-body">
+                  <!-- Populated client-side -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Route Modifier & Optimizer -->
+          <div class="card" style="padding: 1.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom: 1rem;">Route Modification &amp; Optimization</h3>
+            <form id="route-modifier-form" onsubmit="handleRouteModification(event)" style="display:flex; flex-direction:column; gap:0.8rem;">
+              <div class="form-group" style="text-align:left;">
+                <label class="form-label" style="font-size:0.65rem;">Select Dispatch ID</label>
+                <select id="route-opt-shipment" required style="background:var(--glass); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:0.5rem; width:100%; outline:none;" onchange="loadSelectedShipmentRoute()">
+                  <option value="">-- Choose Shipment --</option>
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+
+              <div class="form-group" style="text-align:left;">
+                <label class="form-label" style="font-size:0.65rem;">Vehicle Assignment</label>
+                <select id="route-opt-vehicle" required style="background:var(--glass); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:0.5rem; width:100%; outline:none;">
+                  <option value="VHL-DRN-10">Drone Delivery (VHL-DRN-10)</option>
+                  <option value="VHL-VAN-08">Refrigerated Van (VHL-VAN-08)</option>
+                  <option value="VHL-TRK-03">Medical Truck (VHL-TRK-03)</option>
+                  <option value="VHL-DRN-15">Drone Delivery (VHL-DRN-15)</option>
+                  <option value="VHL-TRK-07">Medical Truck (VHL-TRK-07)</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="text-align:left;">
+                <label class="form-label" style="font-size:0.65rem;">Redistribution Route Status</label>
+                <select id="route-opt-status" required style="background:var(--glass); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:0.5rem; width:100%; outline:none;">
+                  <option value="Scheduled">Scheduled</option>
+                  <option value="En Route">En Route</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <button type="submit" id="route-opt-submit-btn" class="btn btn-blue" style="margin-top:0.5rem; width:100%; display:flex; justify-content:center; align-items:center; gap:0.5rem;">
+                <span>Optimize &amp; Redirect Route</span>
+              </button>
+            </form>
           </div>
         </div>
 
@@ -756,7 +921,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const emojiEl = document.getElementById("role-avatar-emoji");
   if (emojiEl) {
-    const emojis = { 'PHC User': '🏥', 'District Admin': '👨‍⚕️', 'State Admin': '🏛️', 'Warehouse Supervisor': '🚚' };
+    const emojis = { 'PHC User': '🏥', 'District Admin': '👨‍⚕️', 'State Admin': '🏛️', 'Warehouse Supervisor': '🚚', 'Logistics Head': '🚛' };
     emojiEl.textContent = emojis[sessionUser.role] || '👤';
   }
   
@@ -784,6 +949,8 @@ function normalizeSessionProfile(profile) {
     role = "PHC User";
   } else if (rawRole.includes("warehouse")) {
     role = "Warehouse Supervisor";
+  } else if (rawRole.includes("logistics")) {
+    role = "Logistics Head";
   }
 
   return {
@@ -813,7 +980,8 @@ async function restoreSessionUser() {
       email: authData.user.email,
       role: authData.user.user_metadata?.role,
       phc_id: authData.user.user_metadata?.phc_id,
-      district: authData.user.user_metadata?.district
+      district: authData.user.user_metadata?.district,
+      warehouse_id: authData.user.user_metadata?.warehouse_id
     });
 
     if (rebuiltProfile) {
@@ -844,6 +1012,13 @@ function renderLayout() {
     document.getElementById("sidebar-data-objects").style.display = "block";
     document.getElementById("topbar-heading").textContent = `Warehouse Depot`;
     document.getElementById("topbar-breadcrumb").textContent = `Warehouse Supervisor Panel (${sessionUser.warehouse_id || 'Depot'})`;
+  } else if (sessionUser.role === 'Logistics Head') {
+    document.getElementById("nav-logistics").style.display = "flex";
+    document.getElementById("logistics-head-view").style.display = "block";
+    document.getElementById("sidebar-data-label").style.display = "block";
+    document.getElementById("sidebar-data-objects").style.display = "block";
+    document.getElementById("topbar-heading").textContent = `Logistics Control Center`;
+    document.getElementById("topbar-breadcrumb").textContent = `Logistics Head Panel`;
   } else {
     // Admins get everything
     document.getElementById("nav-admin").style.display = "flex";
@@ -877,7 +1052,7 @@ async function loadAndBindRealtime() {
   await refreshDatabaseState();
   
   // Enable realtime subscriptions on public tables
-  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers', 'warehouses', 'logistics_shipments'];
+  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers', 'warehouses', 'logistics_shipments', 'drivers'];
   tables.forEach(table => {
     supabaseClient.channel(`realtime-${table}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: table }, async (payload) => {
@@ -902,7 +1077,8 @@ async function refreshDatabaseState() {
       resTransfers,
       resWarehouses,
       resShipments,
-      resWhInventory
+      resWhInventory,
+      resDrivers
     ] = await Promise.all([
       supabaseClient.from('phcs').select('*'),
       supabaseClient.from('inventory').select('*'),
@@ -914,7 +1090,8 @@ async function refreshDatabaseState() {
       supabaseClient.from('medicine_transfers').select('*'),
       supabaseClient.from('warehouses').select('*'),
       supabaseClient.from('logistics_shipments').select('*'),
-      supabaseClient.from('warehouse_inventory').select('*')
+      supabaseClient.from('warehouse_inventory').select('*'),
+      supabaseClient.from('drivers').select('*')
     ]);
 
     phcs = resPhcs.data || [];
@@ -928,6 +1105,7 @@ async function refreshDatabaseState() {
     const warehouses = resWarehouses.data || [];
     const shipments = resShipments.data || [];
     const warehouseInventory = resWhInventory.data || [];
+    const drivers = resDrivers.data || [];
 
     // Trigger specific rendering based on user role
     if (sessionUser.role === 'PHC User') {
@@ -940,6 +1118,8 @@ async function refreshDatabaseState() {
       renderCoreAnalytics();
     } else if (sessionUser.role === 'Warehouse Supervisor') {
       renderWarehouseSupervisorView(warehouses, shipments, warehouseInventory);
+    } else if (sessionUser.role === 'Logistics Head') {
+      renderLogisticsHeadView(warehouses, shipments, warehouseInventory, drivers);
     }
   } catch (err) {
     console.error("Error refreshing database state:", err);
@@ -1853,6 +2033,321 @@ async function runAIOptimizations() {
     
   } catch(err) {
     console.error("Failed running AI optimization rules:", err);
+  }
+}
+
+// ─── LOGISTICS HEAD PORTAL RENDERING & GPS SIMULATION ───
+let leafletMap = null;
+let mapMarkers = {}; 
+let mapPaths = {}; 
+let activeShipmentsData = [];
+let activeDriversData = [];
+let gpsSimInterval = null;
+let gpsSimSteps = {};
+let depotMarkers = {};
+
+function jumpToLogisticsPortal() {
+  document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+  const navLog = document.getElementById("nav-logistics");
+  if (navLog) {
+    navLog.style.display = "flex";
+    navLog.classList.add("active");
+  }
+  
+  document.getElementById("district-admin-view").style.display = "none";
+  document.getElementById("state-admin-view").style.display = "none";
+  document.getElementById("warehouse-supervisor-view").style.display = "none";
+  document.getElementById("phc-user-view").style.display = "none";
+  
+  document.getElementById("logistics-head-view").style.display = "block";
+  
+  document.getElementById("topbar-heading").textContent = `Logistics Control Center`;
+  document.getElementById("topbar-breadcrumb").textContent = `Logistics Head Panel (Admin Override)`;
+  
+  setTimeout(() => {
+    initializeLeafletMap();
+  }, 100);
+}
+
+function initializeLeafletMap() {
+  const mapContainer = document.getElementById("logistics-map");
+  if (!mapContainer) return;
+  
+  if (leafletMap) {
+    leafletMap.invalidateSize();
+    return;
+  }
+  
+  // Center map in Telangana
+  leafletMap = L.map('logistics-map').setView([17.4, 78.8], 8);
+  
+  // Dark mode basemap tiles
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(leafletMap);
+
+  const whPoints = [
+    { id: "WH-NALG-001", name: "Nalgonda Depot 🏬", coords: [17.050, 79.270], color: "#3b82f6" },
+    { id: "WH-MAHA-002", name: "Mahabubnagar Depot 🏬", coords: [16.730, 77.980], color: "#e11d48" },
+    { id: "WH-WARA-003", name: "Warangal Depot 🏬", coords: [17.970, 79.600], color: "#8b5cf6" }
+  ];
+
+  whPoints.forEach(wh => {
+    const depotMarker = L.circleMarker(wh.coords, {
+      radius: 10,
+      fillColor: wh.color,
+      color: '#ffffff',
+      weight: 2.5,
+      fillOpacity: 0.9
+    }).addTo(leafletMap);
+    
+    depotMarker.bindPopup(`<b>${wh.name}</b><br>ID: ${wh.id}<br>Status: Operational`);
+    depotMarkers[wh.id] = depotMarker;
+  });
+}
+
+function renderLogisticsHeadView(warehouses, shipments, warehouseInventory, drivers) {
+  activeShipmentsData = shipments;
+  activeDriversData = drivers;
+
+  // Initialize Map
+  setTimeout(() => {
+    initializeLeafletMap();
+    plotActiveShipmentsOnMap();
+  }, 100);
+
+  // Render Stats
+  const enRouteShipments = shipments.filter(s => s.status === 'En Route');
+  const onDutyDrivers = drivers.filter(d => d.status === 'On Trip' || d.status === 'Available');
+  
+  document.getElementById("lg-active-fleet").textContent = enRouteShipments.length;
+  document.getElementById("lg-active-drivers").textContent = onDutyDrivers.length;
+
+  let totalFuel = 0;
+  let countVehicles = 0;
+  shipments.forEach(s => {
+    if (s.status === 'En Route' || s.status === 'Scheduled') {
+      totalFuel += (s.fuel_level || s.battery_health || 100);
+      countVehicles++;
+    }
+  });
+  const avgFuel = countVehicles > 0 ? Math.round(totalFuel / countVehicles) : 100;
+  document.getElementById("lg-avg-fuel").textContent = `${avgFuel}%`;
+
+  // Render diagnostics table
+  const diagBody = document.getElementById("lg-vehicle-health-body");
+  if (diagBody) {
+    diagBody.innerHTML = "";
+    const activeVehicles = shipments.filter(s => s.status === 'En Route' || s.status === 'Scheduled');
+    if (activeVehicles.length === 0) {
+      diagBody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text3)">No active vehicles en route.</td></tr>`;
+    } else {
+      activeVehicles.forEach(s => {
+        let engBadge = "badge-success";
+        if (s.engine_status === "Warning") engBadge = "badge-warning";
+        else if (s.engine_status === "Fault") engBadge = "badge-critical";
+
+        const fuel = s.fuel_level !== null ? s.fuel_level : s.battery_health;
+        const fuelLabel = s.vehicle_type === 'Drone Delivery' ? 'Batt' : 'Fuel';
+
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.75rem 0.5rem; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--cyan)">${s.vehicle_id}</td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text); font-weight:600;">${s.vehicle_type}</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;">
+            <div style="display:flex; align-items:center; gap:0.4rem; justify-content:center;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:700; color:var(--text)">${fuel}%</span>
+              <div style="width:50px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                <div style="width:${fuel}%; height:100%; background:${fuel < 30 ? 'var(--red)' : 'var(--emerald)'}"></div>
+              </div>
+            </div>
+          </td>
+          <td style="padding:0.75rem 0.5rem; text-align:center; font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--text2)">${s.battery_health}%</td>
+          <td style="padding:0.75rem 0.5rem; text-align:center;"><span class="badge ${engBadge}">${s.engine_status}</span></td>
+          <td style="padding:0.75rem 0.5rem; color:var(--text3); font-size:0.75rem;">${s.route}</td>
+        `;
+        diagBody.appendChild(tr);
+      });
+    }
+  }
+
+  // Render Drivers List
+  const driversBody = document.getElementById("lg-drivers-body");
+  if (driversBody) {
+    driversBody.innerHTML = "";
+    if (drivers.length === 0) {
+      driversBody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--text3)">No drivers registered.</td></tr>`;
+    } else {
+      drivers.forEach(d => {
+        let statusClass = "badge-normal";
+        if (d.status === "Available") statusClass = "badge-success";
+        else if (d.status === "On Trip") statusClass = "badge-blue";
+        else if (d.status === "Off Duty") statusClass = "badge-warning";
+
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.innerHTML = `
+          <td style="padding:0.5rem; font-weight:700; color:var(--text)">${d.name}</td>
+          <td style="padding:0.5rem; font-family:'JetBrains Mono',monospace; color:var(--text2)">${d.license_number || 'N/A'}</td>
+          <td style="padding:0.5rem; text-align:center;"><span class="badge ${statusClass}">${d.status}</span></td>
+          <td style="padding:0.5rem; text-align:center;">
+            <a href="tel:${d.phone}" class="btn btn-blue" style="padding:0.2rem 0.5rem; font-size:0.7rem; display:inline-flex; align-items:center; gap:0.25rem;">
+              📞 Call
+            </a>
+          </td>
+        `;
+        driversBody.appendChild(tr);
+      });
+    }
+  }
+
+  // Populate Optimizer Dropdown
+  const optSelect = document.getElementById("route-opt-shipment");
+  if (optSelect) {
+    const selectedVal = optSelect.value;
+    optSelect.innerHTML = `<option value="">-- Choose Shipment --</option>`;
+    shipments.forEach(s => {
+      if (s.status !== 'Delivered') {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = `Shipment #${s.id} (${s.medicine_name})`;
+        optSelect.appendChild(opt);
+      }
+    });
+    if (selectedVal) optSelect.value = selectedVal;
+  }
+}
+
+function plotActiveShipmentsOnMap() {
+  if (!leafletMap) return;
+
+  Object.keys(mapPaths).forEach(id => leafletMap.removeLayer(mapPaths[id]));
+  Object.keys(mapMarkers).forEach(id => leafletMap.removeLayer(mapMarkers[id]));
+  mapPaths = {};
+  mapMarkers = {};
+
+  activeShipmentsData.forEach(s => {
+    if (s.status !== 'En Route' && s.status !== 'Scheduled') return;
+    
+    let waypoints = [];
+    try {
+      waypoints = JSON.parse(s.route_waypoints || "[]");
+    } catch(e) {
+      console.error("Could not parse shipment route coordinates:", e);
+    }
+
+    if (waypoints.length === 0) return;
+
+    const color = s.status === 'En Route' ? '#06b6d4' : '#64748b';
+    const path = L.polyline(waypoints, {
+      color: color,
+      weight: 3,
+      opacity: 0.85,
+      dashArray: s.status === 'Scheduled' ? '5, 10' : null
+    }).addTo(leafletMap);
+    mapPaths[s.id] = path;
+
+    const stepIdx = gpsSimSteps[s.id] || 0;
+    const currentLoc = waypoints[stepIdx] || waypoints[0];
+
+    const marker = L.circleMarker(currentLoc, {
+      radius: s.vehicle_type === 'Drone Delivery' ? 6 : 8,
+      fillColor: s.vehicle_type === 'Drone Delivery' ? '#10b981' : '#3b82f6',
+      color: '#ffffff',
+      weight: 2.5,
+      fillOpacity: 1.0
+    }).addTo(leafletMap);
+
+    marker.bindPopup(`
+      <div style="font-family:'Outfit',sans-serif; text-align:left;">
+        <h4 style="margin:0 0 0.25rem; font-weight:800; color:#1e293b;">Shipment #${s.id}</h4>
+        <span style="font-size:0.75rem; color:#64748b;"><b>Vehicle ID:</b> ${s.vehicle_id}</span><br>
+        <span style="font-size:0.75rem; color:#64748b;"><b>Type:</b> ${s.vehicle_type}</span><br>
+        <span style="font-size:0.75rem; color:#64748b;"><b>Status:</b> ${s.status}</span><br>
+        <span style="font-size:0.75rem; color:#64748b;"><b>Medicine:</b> ${s.medicine_name}</span>
+      </div>
+    `);
+    mapMarkers[s.id] = marker;
+  });
+}
+
+function toggleGPSSimulation() {
+  const isEnabled = document.getElementById("gps-simulation-toggle").checked;
+  
+  if (isEnabled) {
+    showToast("Live GPS tracking simulation activated.", "🟢");
+    gpsSimInterval = setInterval(() => {
+      activeShipmentsData.forEach(s => {
+        if (s.status !== 'En Route') return;
+
+        let waypoints = [];
+        try {
+          waypoints = JSON.parse(s.route_waypoints || "[]");
+        } catch(e) {}
+
+        if (waypoints.length === 0) return;
+
+        let idx = gpsSimSteps[s.id] || 0;
+        idx = (idx + 1) % waypoints.length;
+        gpsSimSteps[s.id] = idx;
+
+        const marker = mapMarkers[s.id];
+        if (marker) {
+          marker.setLatLng(waypoints[idx]);
+        }
+      });
+    }, 1500);
+  } else {
+    showToast("Live GPS tracking simulation paused.", "🔴");
+    clearInterval(gpsSimInterval);
+    gpsSimInterval = null;
+  }
+}
+
+function loadSelectedShipmentRoute() {
+  const shipmentId = document.getElementById("route-opt-shipment").value;
+  if (!shipmentId) return;
+
+  const shipment = activeShipmentsData.find(s => s.id === shipmentId);
+  if (shipment) {
+    document.getElementById("route-opt-vehicle").value = shipment.vehicle_id;
+    document.getElementById("route-opt-status").value = shipment.status;
+  }
+}
+
+async function handleRouteModification(event) {
+  event.preventDefault();
+  const shipmentId = document.getElementById("route-opt-shipment").value;
+  const vehicleId = document.getElementById("route-opt-vehicle").value;
+  const status = document.getElementById("route-opt-status").value;
+
+  if (!shipmentId) return;
+
+  showToast("Optimizing routing paths...", "🔄");
+  
+  let vehicleType = "Medical Truck";
+  if (vehicleId.startsWith("VHL-DRN")) vehicleType = "Drone Delivery";
+  else if (vehicleId.startsWith("VHL-VAN")) vehicleType = "Refrigerated Van";
+
+  try {
+    const { error } = await supabaseClient
+      .from('logistics_shipments')
+      .update({
+        vehicle_id: vehicleId,
+        vehicle_type: vehicleType,
+        status: status
+      })
+      .eq('id', shipmentId);
+
+    if (error) throw error;
+    showToast(`Route optimized successfully for Shipment #${shipmentId}!`, "🚀");
+    await refreshDatabaseState();
+  } catch(err) {
+    console.error("Route update error:", err);
+    showToast("Failed to update route parameters.", "🔴");
   }
 }
 </script>

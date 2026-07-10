@@ -138,6 +138,7 @@
             <option value="District Admin">District Admin</option>
             <option value="State Admin">State Admin</option>
             <option value="Warehouse Supervisor">Warehouse Supervisor</option>
+            <option value="Logistics Head">Logistics Head</option>
           </select>
         </div>
         
@@ -346,6 +347,8 @@ function normalizeSessionProfile(profile, authUser) {
     role = "PHC User";
   } else if (rawRole.includes("warehouse")) {
     role = "Warehouse Supervisor";
+  } else if (rawRole.includes("logistics")) {
+    role = "Logistics Head";
   }
 
   return {

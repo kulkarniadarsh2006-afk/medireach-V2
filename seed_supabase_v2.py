@@ -76,6 +76,7 @@ def main():
 
     # Truncate existing seed tables to guarantee clean state
     delete_data("logistics_shipments")
+    delete_data("drivers")
     delete_data("warehouse_inventory")
     delete_data("warehouses")
     delete_data("inventory")
@@ -85,6 +86,25 @@ def main():
     delete_data("medicine_shortages")
     delete_data("medicine_transfers")
     delete_data("emergency_plans")
+
+    # Coordinates mapping for Nalgonda, Mahabubnagar, and Warangal warehouses
+    wh_coords = {
+        "WH-NALG-001": [17.050, 79.270],
+        "WH-MAHA-002": [16.730, 77.980],
+        "WH-WARA-003": [17.970, 79.600]
+    }
+
+    def generate_waypoints(lat1, lon1, lat2, lon2, steps=4):
+        pts = []
+        for i in range(steps + 1):
+            alpha = i / steps
+            lat = lat1 + (lat2 - lat1) * alpha
+            lon = lon1 + (lon2 - lon1) * alpha
+            if 0 < i < steps:
+                lat += random.uniform(-0.04, 0.04)
+                lon += random.uniform(-0.04, 0.04)
+            pts.append([round(lat, 4), round(lon, 4)])
+        return pts
 
     # 1. Seed Warehouses
     warehouses_data = [
@@ -176,6 +196,17 @@ def main():
         })
     post_data("disease_outbreaks", outbreak_rows)
 
+    # 3.5 Seed Drivers
+    print("Generating drivers directory...")
+    drivers = [
+        {"name": "Rajesh Kumar", "phone": "+91 98765 43210", "license_number": "DL-TG-2026-001", "status": "On Trip", "assigned_vehicle_id": "VHL-TRK-03"},
+        {"name": "Anil Reddy", "phone": "+91 87654 32109", "license_number": "DL-TG-2026-002", "status": "Available", "assigned_vehicle_id": "VHL-VAN-08"},
+        {"name": "Srinivas Rao", "phone": "+91 76543 21098", "license_number": "DL-TG-2026-003", "status": "Available", "assigned_vehicle_id": "VHL-TRK-07"},
+        {"name": "Mohammad Ali", "phone": "+91 95432 10987", "license_number": "DL-TG-2026-004", "status": "Off Duty", "assigned_vehicle_id": None},
+        {"name": "Vikram Singh", "phone": "+91 90123 45678", "license_number": "DL-TG-2026-005", "status": "On Trip", "assigned_vehicle_id": "VHL-VAN-08"}
+    ]
+    post_data("drivers", drivers)
+
     # 4. Seed Logistics Shipments
     print("Generating logistics dispatches...")
     shipments = []
@@ -195,6 +226,21 @@ def main():
         
         eta = datetime.now() + timedelta(hours=random.randint(2, 12))
         
+        # Generate real coordinates waypoints in Telangana
+        start_lat, start_lon = wh_coords[wh["id"]]
+        end_lat = random.uniform(16.5, 18.5)
+        end_lon = random.uniform(77.5, 80.5)
+        waypoints = generate_waypoints(start_lat, start_lon, end_lat, end_lon)
+        
+        # Calculate diagnostics
+        fuel = random.randint(20, 100) if v_type != "Drone Delivery" else 100
+        batt = random.randint(40, 100) if v_type == "Drone Delivery" else random.randint(85, 100)
+        eng = "Healthy"
+        if fuel < 30 or batt < 50:
+            eng = "Warning"
+        if random.random() < 0.10:
+            eng = "Fault"
+
         shipments.append({
             "id": f"SCH-0{idx+1}",
             "vehicle_type": v_type,
@@ -208,7 +254,11 @@ def main():
             "priority": random.choice(["Critical", "High", "Medium"]),
             "road_condition": random.choice(["Good", "Fair", "Poor"]),
             "estimated_hours": random.randint(3, 10),
-            "status": random.choice(["Scheduled", "En Route", "Delivered"])
+            "status": random.choice(["Scheduled", "En Route", "Delivered"]),
+            "fuel_level": fuel,
+            "battery_health": batt,
+            "engine_status": eng,
+            "route_waypoints": json.dumps(waypoints)
         })
     post_data("logistics_shipments", shipments)
 

@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS medicine_transfers CASCADE;
 DROP TABLE IF EXISTS medicine_requests CASCADE;
 DROP TABLE IF EXISTS shortage_alerts CASCADE;
 DROP TABLE IF EXISTS logistics_shipments CASCADE;
+DROP TABLE IF EXISTS drivers CASCADE;
 DROP TABLE IF EXISTS warehouse_inventory CASCADE;
 DROP TABLE IF EXISTS warehouses CASCADE;
 DROP TABLE IF EXISTS medicines CASCADE;
@@ -50,7 +51,7 @@ CREATE TABLE IF NOT EXISTS warehouse_inventory (
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('PHC User', 'District Admin', 'State Admin', 'Warehouse Supervisor')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('PHC User', 'District Admin', 'State Admin', 'Warehouse Supervisor', 'Logistics Head')),
     phc_id VARCHAR(50) REFERENCES phcs("PHC_Code") ON DELETE SET NULL,
     district VARCHAR(100),
     warehouse_id VARCHAR(50) REFERENCES warehouses(id) ON DELETE SET NULL,
@@ -93,7 +94,21 @@ CREATE TABLE IF NOT EXISTS logistics_shipments (
     priority VARCHAR(50) DEFAULT 'Medium',
     road_condition VARCHAR(50) DEFAULT 'Good',
     estimated_hours INTEGER DEFAULT 4,
-    status VARCHAR(50) DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'En Route', 'Delivered', 'Cancelled'))
+    status VARCHAR(50) DEFAULT 'Scheduled' CHECK (status IN ('Scheduled', 'En Route', 'Delivered', 'Cancelled')),
+    fuel_level INTEGER DEFAULT 100 CHECK (fuel_level BETWEEN 0 AND 100),
+    battery_health INTEGER DEFAULT 100 CHECK (battery_health BETWEEN 0 AND 100),
+    engine_status VARCHAR(50) DEFAULT 'Healthy',
+    route_waypoints TEXT
+);
+
+-- 2.8 Create Drivers Table
+CREATE TABLE IF NOT EXISTS drivers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    license_number VARCHAR(100) UNIQUE,
+    status VARCHAR(50) DEFAULT 'Available', -- 'Available', 'On Trip', 'Off Duty'
+    assigned_vehicle_id VARCHAR(50)
 );
 
 -- 3. Re-create/Ensure Inventory Table exists
@@ -204,6 +219,7 @@ ALTER TABLE medicine_transfers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE warehouses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE logistics_shipments DISABLE ROW LEVEL SECURITY;
 ALTER TABLE warehouse_inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers DISABLE ROW LEVEL SECURITY;
 
 -- Enable Realtime subscriptions on crucial tables (inventory, statistics, and calculations)
 ALTER PUBLICATION supabase_realtime ADD TABLE inventory;
@@ -215,6 +231,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE medicine_transfers;
 ALTER PUBLICATION supabase_realtime ADD TABLE emergency_plans;
 ALTER PUBLICATION supabase_realtime ADD TABLE logistics_shipments;
 ALTER PUBLICATION supabase_realtime ADD TABLE warehouse_inventory;
+ALTER PUBLICATION supabase_realtime ADD TABLE drivers;
 
 -- Grant full read/write privileges on all tables, sequences, and functions to anon and authenticated roles
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;
