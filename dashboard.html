@@ -898,8 +898,7 @@ let shortages = [];
 let emergencyPlans = [];
 let transfers = [];
 
-// Chart References
-let outbreakChart = null;
+// Chart References (Managed dynamically via Chart.getChart)
 
 document.addEventListener("DOMContentLoaded", async () => {
   if (!supabaseClient) {
@@ -1505,9 +1504,10 @@ function renderDistrictOutbreakChart(distOutbreaks) {
     }
   });
 
-  if (outbreakChart) outbreakChart.destroy();
+  const existingChart = Chart.getChart(ctx);
+  if (existingChart) existingChart.destroy();
   
-  outbreakChart = new Chart(ctx, {
+  new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: Object.keys(counts),
@@ -1580,9 +1580,10 @@ function renderStateOutbreakChart(stateOutbreaks) {
     }
   });
 
-  if (outbreakChart) outbreakChart.destroy();
+  const existingChart = Chart.getChart(ctx);
+  if (existingChart) existingChart.destroy();
   
-  outbreakChart = new Chart(ctx, {
+  new Chart(ctx, {
     type: 'pie',
     data: {
       labels: Object.keys(counts),
