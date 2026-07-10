@@ -1056,19 +1056,8 @@ function renderLayout() {
 }
 
 async function loadAndBindRealtime() {
-  // Load initial data
+  // Load initial data once on page load (Auto-refresh/realtime subscriptions disabled per user request)
   await refreshDatabaseState();
-  
-  // Enable realtime subscriptions on public tables
-  const tables = ['inventory', 'patient_statistics', 'disease_outbreaks', 'medicine_predictions', 'medicine_shortages', 'emergency_plans', 'medicine_transfers', 'warehouses', 'logistics_shipments', 'drivers'];
-  tables.forEach(table => {
-    supabaseClient.channel(`realtime-${table}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: table }, async (payload) => {
-        console.log(`Realtime DB update caught on [${table}]:`, payload);
-        await refreshDatabaseState();
-      })
-      .subscribe();
-  });
 }
 
 async function refreshDatabaseState() {
@@ -1115,19 +1104,19 @@ async function refreshDatabaseState() {
     const warehouseInventory = resWhInventory.data || [];
     const drivers = resDrivers.data || [];
 
-    // Trigger specific rendering based on user role
+    // Trigger specific rendering based on user role with defensive try-catches
     if (sessionUser.role === 'PHC User') {
-      renderPHCUserView();
+      try { renderPHCUserView(); } catch(e) { console.error("PHC view render error:", e); }
     } else if (sessionUser.role === 'District Admin') {
-      renderDistrictAdminView();
-      renderCoreAnalytics();
+      try { renderDistrictAdminView(); } catch(e) { console.error("District Admin view render error:", e); }
+      try { renderCoreAnalytics(); } catch(e) { console.error("Core Analytics view render error:", e); }
     } else if (sessionUser.role === 'State Admin') {
-      renderStateAdminView();
-      renderCoreAnalytics();
+      try { renderStateAdminView(); } catch(e) { console.error("State Admin view render error:", e); }
+      try { renderCoreAnalytics(); } catch(e) { console.error("Core Analytics view render error:", e); }
     } else if (sessionUser.role === 'Warehouse Supervisor') {
-      renderWarehouseSupervisorView(warehouses, shipments, warehouseInventory);
+      try { renderWarehouseSupervisorView(warehouses, shipments, warehouseInventory); } catch(e) { console.error("Warehouse supervisor view render error:", e); }
     } else if (sessionUser.role === 'Logistics Head') {
-      renderLogisticsHeadView(warehouses, shipments, warehouseInventory, drivers);
+      try { renderLogisticsHeadView(warehouses, shipments, warehouseInventory, drivers); } catch(e) { console.error("Logistics head view render error:", e); }
     }
   } catch (err) {
     console.error("Error refreshing database state:", err);
@@ -1456,14 +1445,22 @@ function renderDistrictAdminView() {
   const distShortages = shortages.filter(item => phcCodes.includes(item.phc_id));
   const distTransfers = transfers.filter(item => phcCodes.includes(item.source_phc_id) || phcCodes.includes(item.destination_phc_id));
 
-  // KPIs
-  document.getElementById("dk-phcs").textContent = distPhcs.length;
-  document.getElementById("dk-outbreaks").textContent = distOutbreaks.reduce((acc, curr) => acc + curr.cases_reported, 0);
-  document.getElementById("dk-shortages").textContent = distShortages.filter(s => s.risk_level === 'Critical' || s.risk_level === 'High').length;
-  document.getElementById("dk-transfers").textContent = distTransfers.length;
+  // KPIs (Defensively set text content)
+  const phcsEl = document.getElementById("dk-phcs");
+  if (phcsEl) phcsEl.textContent = distPhcs.length;
+  const outbreaksEl = document.getElementById("dk-outbreaks");
+  if (outbreaksEl) outbreaksEl.textContent = distOutbreaks.reduce((acc, curr) => acc + (curr.cases_reported || 0), 0);
+  const shortagesEl = document.getElementById("dk-shortages");
+  if (shortagesEl) shortagesEl.textContent = distShortages.filter(s => s.risk_level === 'Critical' || s.risk_level === 'High').length;
+  const transfersEl = document.getElementById("dk-transfers");
+  if (transfersEl) transfersEl.textContent = distTransfers.length;
 
   // Outbreaks Chart (Donut)
-  renderDistrictOutbreakChart(distOutbreaks);
+  try {
+    renderDistrictOutbreakChart(distOutbreaks);
+  } catch (e) {
+    console.error("District chart render failed:", e);
+  }
 
   // Facilities Table
   const tbody = document.getElementById("dk-phc-table-body");
@@ -1477,7 +1474,7 @@ function renderDistrictAdminView() {
 
   distPhcs.forEach(p => {
     const code = p.PHC_Code;
-    const outs = distOutbreaks.filter(o => o.phc_id === code).reduce((acc, curr) => acc + curr.cases_reported, 0);
+    const outs = distOutbreaks.filter(o => o.phc_id === code).reduce((acc, curr) => acc + (curr.cases_reported || 0), 0);
     const shorts = distShortages.filter(s => s.phc_id === code && (s.risk_level === 'Critical' || s.risk_level === 'High')).length;
     
     const tr = document.createElement("tr");
@@ -1535,11 +1532,15 @@ function renderStateAdminView() {
   // Group PHCs by district
   const districts = [...new Set(phcs.map(p => p.District))];
   
-  // KPIs
-  document.getElementById("sk-districts").textContent = districts.length;
-  document.getElementById("sk-phcs").textContent = phcs.length;
-  document.getElementById("sk-cases").textContent = outbreaks.reduce((acc, curr) => acc + curr.cases_reported, 0);
-  document.getElementById("sk-shortages").textContent = shortages.filter(s => s.risk_level === 'Critical').length;
+  // KPIs (Defensively set text content)
+  const distEl = document.getElementById("sk-districts");
+  if (distEl) distEl.textContent = districts.length;
+  const phcsEl = document.getElementById("sk-phcs");
+  if (phcsEl) phcsEl.textContent = phcs.length;
+  const casesEl = document.getElementById("sk-cases");
+  if (casesEl) casesEl.textContent = outbreaks.reduce((acc, curr) => acc + (curr.cases_reported || 0), 0);
+  const shortagesEl = document.getElementById("sk-shortages");
+  if (shortagesEl) shortagesEl.textContent = shortages.filter(s => s.risk_level === 'Critical').length;
 
   // Districts Table
   const tbody = document.getElementById("sk-district-table-body");
@@ -1550,8 +1551,8 @@ function renderStateAdminView() {
     const distPhcs = phcs.filter(p => p.District === d);
     const codes = distPhcs.map(p => p.PHC_Code);
     const shorts = shortages.filter(s => codes.includes(s.phc_id) && s.risk_level === 'Critical').length;
-    const outs = outbreaks.filter(o => codes.includes(o.phc_id)).reduce((acc, curr) => acc + curr.cases_reported, 0);
-    const demand = predictions.filter(p => codes.includes(p.phc_id)).reduce((acc, curr) => acc + curr.predicted_demand, 0);
+    const outs = outbreaks.filter(o => codes.includes(o.phc_id)).reduce((acc, curr) => acc + (curr.cases_reported || 0), 0);
+    const demand = predictions.filter(p => codes.includes(p.phc_id)).reduce((acc, curr) => acc + (curr.predicted_demand || 0), 0);
 
     const tr = document.createElement("tr");
     tr.style.borderBottom = "1px solid var(--border-light)";
@@ -1566,7 +1567,11 @@ function renderStateAdminView() {
   });
 
   // Outbreaks Chart
-  renderStateOutbreakChart(outbreaks);
+  try {
+    renderStateOutbreakChart(outbreaks);
+  } catch (e) {
+    console.error("State chart render failed:", e);
+  }
 }
 
 function renderStateOutbreakChart(stateOutbreaks) {
