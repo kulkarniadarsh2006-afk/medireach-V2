@@ -1725,12 +1725,20 @@ function renderStateOutbreakChart(stateOutbreaks) {
 // ─── CORE ANALYTICS (AI FORECASTS, SHORTAGES, REDISTRIBUTIONS, EMERGENCIES) ───
 function renderCoreAnalytics() {
   const limitList = 25; // Limit displayed rows to keep dashboard fast
+  const riskOrder = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
   
   // A. DEMAND FORECASTS TABLE
   const demandBody = document.getElementById("demand-table-body");
   if (demandBody) {
     demandBody.innerHTML = "";
-    const list = predictions.slice(0, limitList);
+    // Sort: newest generated_at first, then by demand size desc
+    const sortedPredictions = [...predictions].sort((a, b) => {
+      const dateA = new Date(a.generated_at || 0);
+      const dateB = new Date(b.generated_at || 0);
+      if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
+      return b.predicted_demand - a.predicted_demand;
+    });
+    const list = sortedPredictions.slice(0, limitList);
     if (list.length === 0) {
       demandBody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text3)">No calculations generated. Enter PHC data.</td></tr>`;
     } else {
@@ -1753,7 +1761,19 @@ function renderCoreAnalytics() {
   const shortagesBody = document.getElementById("shortages-table-body");
   if (shortagesBody) {
     shortagesBody.innerHTML = "";
-    const list = shortages.slice(0, limitList);
+    // Sort: newest generated_at first, then by risk severity, then by days remaining ascending
+    const sortedShortages = [...shortages].sort((a, b) => {
+      const dateA = new Date(a.generated_at || 0);
+      const dateB = new Date(b.generated_at || 0);
+      if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
+      
+      const riskA = riskOrder[a.risk_level] !== undefined ? riskOrder[a.risk_level] : 99;
+      const riskB = riskOrder[b.risk_level] !== undefined ? riskOrder[b.risk_level] : 99;
+      if (riskA !== riskB) return riskA - riskB;
+      
+      return a.days_remaining - b.days_remaining;
+    });
+    const list = sortedShortages.slice(0, limitList);
     
     // Update alert badges
     const critCount = shortages.filter(s => s.risk_level === 'Critical').length;
@@ -1820,7 +1840,17 @@ function renderCoreAnalytics() {
   const transfersBody = document.getElementById("transfers-table-body");
   if (transfersBody) {
     transfersBody.innerHTML = "";
-    const list = transfers.slice(0, limitList);
+    // Sort: newest generated_at first, then by priority severity
+    const sortedTransfers = [...transfers].sort((a, b) => {
+      const dateA = new Date(a.generated_at || 0);
+      const dateB = new Date(b.generated_at || 0);
+      if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
+      
+      const priorityA = riskOrder[a.priority] !== undefined ? riskOrder[a.priority] : 99;
+      const priorityB = riskOrder[b.priority] !== undefined ? riskOrder[b.priority] : 99;
+      return priorityA - priorityB;
+    });
+    const list = sortedTransfers.slice(0, limitList);
     if (list.length === 0) {
       transfersBody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:var(--text3)">No redistribution recommended. Stocks balanced.</td></tr>`;
     } else {
@@ -1849,7 +1879,17 @@ function renderCoreAnalytics() {
   const emergencyBody = document.getElementById("emergency-table-body");
   if (emergencyBody) {
     emergencyBody.innerHTML = "";
-    const list = emergencyPlans.slice(0, limitList);
+    // Sort: newest generated_at first, then by severity
+    const sortedEmergency = [...emergencyPlans].sort((a, b) => {
+      const dateA = new Date(a.generated_at || 0);
+      const dateB = new Date(b.generated_at || 0);
+      if (dateB.getTime() !== dateA.getTime()) return dateB - dateA;
+      
+      const sevA = riskOrder[a.severity] !== undefined ? riskOrder[a.severity] : 99;
+      const sevB = riskOrder[b.severity] !== undefined ? riskOrder[b.severity] : 99;
+      return sevA - sevB;
+    });
+    const list = sortedEmergency.slice(0, limitList);
     
     const sidebarEmergCount = document.getElementById("sidebar-emergency-count");
     if (sidebarEmergCount) {
