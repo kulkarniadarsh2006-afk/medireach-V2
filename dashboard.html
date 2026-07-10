@@ -1462,6 +1462,9 @@ function renderDistrictAdminView() {
   document.getElementById("dk-shortages").textContent = distShortages.filter(s => s.risk_level === 'Critical' || s.risk_level === 'High').length;
   document.getElementById("dk-transfers").textContent = distTransfers.length;
 
+  // Outbreaks Chart (Donut)
+  renderDistrictOutbreakChart(distOutbreaks);
+
   // Facilities Table
   const tbody = document.getElementById("dk-phc-table-body");
   if (!tbody) return;
@@ -1488,9 +1491,6 @@ function renderDistrictAdminView() {
     `;
     tbody.appendChild(tr);
   });
-
-  // Outbreaks Chart (Donut)
-  renderDistrictOutbreakChart(distOutbreaks);
 }
 
 function renderDistrictOutbreakChart(distOutbreaks) {
