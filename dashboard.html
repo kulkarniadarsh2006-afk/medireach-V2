@@ -635,6 +635,15 @@
                 <input type="checkbox" id="gps-simulation-toggle" onchange="toggleGPSSimulation()" style="cursor:pointer; width:18px; height:18px;" />
               </div>
             </div>
+            
+            <!-- Interactive Search Bar -->
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+              <input type="text" id="map-search-input" placeholder="Search states, cities, villages, or districts in India (e.g. Hyderabad, Nalgonda, Telangana)..." style="flex:1; background:var(--glass); border:1px solid var(--border); border-radius:8px; padding:0.6rem 1rem; color:var(--text); font-size:0.8rem; outline:none;" onkeydown="if(event.key === 'Enter') searchMapLocation()" />
+              <button onclick="searchMapLocation()" class="btn btn-blue" style="font-size:0.8rem; padding:0.6rem 1.2rem; display:inline-flex; align-items:center; gap:0.25rem;">
+                <span>🔍 Search</span>
+              </button>
+            </div>
+
             <!-- Leaflet Map Container -->
             <div id="logistics-map" style="width: 100%; height: 450px; border-radius: 12px; border: 1px solid var(--border); background:#0f172a; z-index: 1;"></div>
           </div>
@@ -2348,6 +2357,42 @@ async function handleRouteModification(event) {
   } catch(err) {
     console.error("Route update error:", err);
     showToast("Failed to update route parameters.", "🔴");
+  }
+}
+
+async function searchMapLocation() {
+  const query = document.getElementById("map-search-input").value.trim();
+  if (!query) {
+    showToast("Please enter a location to search.", "⚠️");
+    return;
+  }
+
+  showToast(`Searching for "${query}"...`, "🔄");
+
+  try {
+    // Search Nominatim geocoder (restricted to India for accuracy)
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+
+    if (data && data.length > 0) {
+      const place = data[0];
+      const lat = parseFloat(place.lat);
+      const lon = parseFloat(place.lon);
+      
+      // Pan and zoom to location. Zoom level 14 shows detailed streets, neighborhoods and villages
+      leafletMap.setView([lat, lon], 14);
+      
+      // Add a highlighted marker on searched place
+      const searchMarker = L.marker([lat, lon]).addTo(leafletMap);
+      searchMarker.bindPopup(`<b>Searched Place:</b><br>${place.display_name}`).openPopup();
+      
+      showToast(`Found: ${place.name || query}`, "🟢");
+    } else {
+      showToast("Place not found. Try adding state (e.g. Telangana).", "🔴");
+    }
+  } catch (err) {
+    console.error("Geocoding search error:", err);
+    showToast("Search service unavailable.", "🔴");
   }
 }
 </script>
