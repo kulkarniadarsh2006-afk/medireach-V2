@@ -116,6 +116,12 @@
       </div>
       <div class="topbar-time" id="topbar-time">00:00:00</div>
       
+      <!-- Unified Sync & Flow Button -->
+      <button class="btn btn-primary" id="workflow-sync-btn" onclick="triggerWorkflowSync(event)" style="display: flex; align-items: center; gap: 0.5rem; background: var(--primary); color: white; border: none; border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; margin-right: 0.5rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="sync-icon"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <span id="workflow-sync-text">Sync System</span>
+      </button>
+      
       <div style="position:relative">
         <div class="topbar-notif" onclick="toggleNotificationDropdown(event)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -1191,6 +1197,47 @@ function logoutUser(e) {
   if (e) e.preventDefault();
   sessionStorage.clear();
   window.location.href = "index.html";
+}
+
+async function triggerWorkflowSync(event) {
+  if (event) event.preventDefault();
+  const btn = document.getElementById("workflow-sync-btn");
+  const textEl = document.getElementById("workflow-sync-text");
+  const icon = btn.querySelector(".sync-icon");
+  
+  // Disable button and start rotation animation
+  btn.disabled = true;
+  btn.style.opacity = "0.75";
+  icon.style.animation = "spin 1s linear infinite";
+  
+  try {
+    textEl.textContent = "Fetching inputs...";
+    showToast("Starting workflow sync... [1/4] Fetching raw data", "⚡");
+    
+    // Step 1: Fetch raw database states
+    await refreshDatabaseState();
+    
+    // Step 2: Run AI redistribution calculations and forecasts
+    textEl.textContent = "AI Analysis...";
+    showToast("Running predictions & redistributions... [2/4]", "🧠");
+    await runAIOptimizations();
+    
+    // Step 3: Fetch updated states containing newly generated transfers and forecasts
+    textEl.textContent = "Syncing dashboards...";
+    showToast("Consolidating datasets... [3/4]", "💾");
+    await refreshDatabaseState();
+    
+    showToast("System synchronized successfully! State & Districts connected. [4/4]", "🟢");
+    textEl.textContent = "Sync System";
+  } catch (err) {
+    console.error("Workflow sync failed:", err);
+    showToast("Workflow sync failed: " + (err.message || err), "🔴");
+    textEl.textContent = "Sync System";
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    icon.style.animation = "none";
+  }
 }
 
 // ─── WAREHOUSE SUPERVISOR RENDERING & LOGIC ───
