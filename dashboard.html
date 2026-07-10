@@ -874,6 +874,33 @@ if (!window.supabase) {
 <script src="static/js/config.js"></script>
 <script src="static/js/base.js"></script>
 <script>
+// Global Error Overlay Handler to capture and render any runtime exceptions on screen
+window.onerror = function (message, source, lineno, colno, error) {
+  const errorContainer = document.createElement("div");
+  errorContainer.style.position = "fixed";
+  errorContainer.style.top = "0";
+  errorContainer.style.left = "0";
+  errorContainer.style.width = "100%";
+  errorContainer.style.zIndex = "999999";
+  errorContainer.style.background = "#ef4444";
+  errorContainer.style.color = "#ffffff";
+  errorContainer.style.padding = "20px";
+  errorContainer.style.fontFamily = "monospace";
+  errorContainer.style.fontSize = "14px";
+  errorContainer.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+  errorContainer.style.maxHeight = "50vh";
+  errorContainer.style.overflowY = "auto";
+  
+  errorContainer.innerHTML = `
+    <strong>⚠️ MediReach Frontend Error Caught:</strong><br>
+    <strong>Message:</strong> ${message}<br>
+    <strong>Source:</strong> ${source}:${lineno}:${colno}<br>
+    <strong>Stack:</strong> ${error ? error.stack : 'N/A'}
+  `;
+  document.body.appendChild(errorContainer);
+  return false;
+};
+
 // Initialize Supabase Client directly
 const supabaseClient = window.supabase
   ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
